@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { sendDom } from "./utils/sendDomGetCommands";
 import { useCallback } from "react";
+import { sendDom } from "./utils/sendDomGetCommands";
 
 export const AppContext = React.createContext<{
   loding: boolean
