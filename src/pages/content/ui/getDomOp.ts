@@ -1,4 +1,4 @@
-const TAXY_ELEMENT_SELECTOR = "data-taxy-node-id"
+const TAXY_ELEMENT_SELECTOR = 'data-taxy-node-id'
 
 function isInteractive(
   element: HTMLElement,
@@ -68,20 +68,25 @@ function traverseDOM(node: Node, pageElements: HTMLElement[]) {
  * getAnnotatedDom returns the pageElements array and a cloned DOM
  * with data-pe-idx attributes added to each element in the copy.
  */
-export default function getAnnotatedDOM(pageDom: HTMLElement) {
+export default function getAnnotatedDOM() {
   currentElements = [];
-  const result = traverseDOM(pageDom, currentElements);
-  console.log("Result", result)
+  const result = traverseDOM(document.documentElement, currentElements);
   return (result.clonedDOM as HTMLElement).outerHTML;
 }
 
 // idempotent function to get a unique id for an element
 export function getUniqueElementSelectorId(id: number): string {
+  console.log("getUniqueElementSelectorId ------------", id, currentElements, currentElements[id])
+  console.log("getUniqueElementSelectorId ------------", currentElements[id])
+
   const element = currentElements[id];
   // element may already have a unique id
+
   let uniqueId = element.getAttribute(TAXY_ELEMENT_SELECTOR);
+  console.log("getUniqueElementSelectorId", id, uniqueId)
   if (uniqueId) return uniqueId;
   uniqueId = Math.random().toString(36).substring(2, 10);
   element.setAttribute(TAXY_ELEMENT_SELECTOR, uniqueId);
+  console.log("getUniqueElementSelectorId", id, uniqueId)
   return uniqueId;
 }

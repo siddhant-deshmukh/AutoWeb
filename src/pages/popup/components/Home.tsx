@@ -1,9 +1,17 @@
 import { useContext, useEffect } from 'react'
 import { AppContext } from '../AppContext'
+import { getSimplifiedDom } from '../utils/simplifyDOM'
+import { sendDomGetCommand } from '../utils/sendDomGetCommands'
+import { callRPC } from '../utils/getFromContentScript'
+import { useState } from 'react'
+import { attachDebugger, detachDebugger } from '../utils/chromeDebugger'
+import { getObjectId } from '../utils/handleingDOMOperations'
 
 export default function Home() {
 
-  const { apiKey, loding, setCurrPage, setLoding } = useContext(AppContext)
+  const { apiKey, loding, tabId, setCurrPage, setLoding } = useContext(AppContext)
+
+  const [userPrompt, setUserPrompt] = useState<string>("")
 
   useEffect(() => {
     if (chrome && chrome.runtime) {
@@ -47,9 +55,9 @@ export default function Home() {
     <div>
       <div className="w-full flex justify-between items-center mb-5">
         <h1 className="text-xl font-extrabold">AutoWeb</h1>
-        <div>
+        {/* <div>
           {apiKey}
-        </div>
+        </div> */}
         <button
           type="button"
           onClick={() => {
@@ -64,18 +72,21 @@ export default function Home() {
         <textarea
           id="message"
           rows={4}
+          value={userPrompt}
+          onChange={(e) => { setUserPrompt(e.target.value) }}
           className="block my-2.5 p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="What do you want your current page to do ....">
         </textarea>
         <button
           type="button"
           onClick={() => {
             // setCurrPage('setting')
-            if (chrome && chrome.runtime) {
-              chrome.runtime.sendMessage(
-                { action: "GET_DOM_DATA" }, function (response) {
-                  console.log("Get dom data response", response)
-                })
-            }
+            // if (chrome && chrome.runtime) {
+            //   chrome.runtime.sendMessage(
+            //     { action: "GET_DOM_DATA" }, function (response) {
+            //       console.log("Get dom data response", response)
+            //     })
+            // }
+            executePrompt(userPrompt, apiKey, tabId)
           }}
           className="mr-auto focus:outline-none text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
           Execute
@@ -83,4 +94,43 @@ export default function Home() {
       </div>
     </div>
   )
+}
+
+
+async function executePrompt(user_prompt: string, apiKey: string, tabId: number) {
+  await attachDebugger(tabId)
+
+  const compact_dom = await getSimplifiedDom()
+  const commands = await sendDomGetCommand(apiKey, { user_prompt, compact_dom: compact_dom.outerHTML })
+
+  for (const command of commands) {
+    // const command = commands[i]
+    console.log("The command", command)
+    const objectId = await getObjectId(command.id, tabId);
+    console.log("Unique id", objectId, command)
+
+
+    if (!objectId) continue;
+
+    // const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    // const tabId = tabs[0].id;
+    // return activeTab.id
+    // const code = `document.getElementById('${objectId}').click();`;
+    // console.log("code", code, "executing")
+    // chrome.tabs.executeScript(activeTab.id, { code: code });
+
+    chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
+      objectId, // The objectId of the DOM node
+      functionDeclaration: "function() { this.click(); }", // Define a function to call click() on the node
+      returnByValue: false
+    }).catch((err)=>{
+      console.error("While runing debugger", err)
+    }).finally(()=>{
+      detachDebugger(tabId)
+    })
+  }
+
+
+  console.log("got commands", commands)
 }

@@ -1,7 +1,9 @@
-import getAnnotatedDOM from "./getDOM";
+import { callRPC } from "./getFromContentScript";
 
-export function getSimplifiedDom(pageDom: HTMLElement) {
-  const fullDom = getAnnotatedDOM(pageDom);
+export async function getSimplifiedDom() {
+  const fullDom = await callRPC('GET_COMPREESED_DOM', undefined, 3);
+  if (!fullDom) return null;
+
   console.log("fullDom", fullDom)
   if (!fullDom) return null;
 

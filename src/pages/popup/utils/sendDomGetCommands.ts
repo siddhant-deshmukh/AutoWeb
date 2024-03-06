@@ -3,7 +3,7 @@ import {
   OpenAIApi
 } from 'openai'
 
-export async function sendDomGetTask(key: string, dom: string) {
+export async function sendDomGetCommand(key: string, { compact_dom, user_prompt } : { compact_dom: string, user_prompt: string }) {
   const openai = new OpenAIApi(
     new Configuration({
       apiKey: key,
@@ -20,9 +20,9 @@ export async function sendDomGetTask(key: string, dom: string) {
 
   please note that in output it should be same HTML tag. I mean you can not give id and tagType of two different tags. For now only consider tagTypes of type "button", "a", "li", "div", "span". And if to perform the task I have to do more than one command then that is fine.
 
-  now the COMMAND is "open new repository"
+  now the COMMAND is "${user_prompt}"
 
-  and the DOM of the website is "${dom}"
+  and the DOM of the website is "${compact_dom}"
   `
 
   console.log(key, prompt)
