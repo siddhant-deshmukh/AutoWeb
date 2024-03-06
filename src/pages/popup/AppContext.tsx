@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useCallback } from "react";
-import { sendDom } from "./utils/sendDomGetCommands";
+import { sendDomGetTask } from "./utils/sendDomGetCommands";
+import { getSimplifiedDom } from "./utils/simplifyDOM";
 
 export const AppContext = React.createContext<{
   loding: boolean
@@ -21,13 +22,17 @@ export const AppContext = React.createContext<{
 export const AppContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [loding, setLoding] = useState<boolean>(true)
   const [apiKey, setApiKey] = useState<string | null>(null)
-  const [currPage, setCurrPage] = useState<'main' | 'setting'>('main')
   const [queryPrompt, setQueryPrompt] = useState<string | "">("")
+  const [currPage, setCurrPage] = useState<'main' | 'setting'>('main')
 
+  // <command>id=430 tagType={"button"}</command>
 
-  const sendToDOm = useCallback((data: string) => {
+  const sendToDOm = useCallback(async (data: string) => {
     console.log(apiKey)
-    sendDom(apiKey, data)
+    const task = await sendDomGetTask(apiKey, data)
+    if (task && Array.isArray(task)) {
+
+    }
   }, [apiKey])
 
   useEffect(() => {
@@ -43,6 +48,11 @@ export const AppContextProvider = ({ children }: { children: React.ReactNode }) 
         }
       } else if (request.message === "DOM_OBJECT_TO_POPUP_FROM_BG") {
         console.log("DOM data", request.data)
+        
+        const data = getSimplifiedDom(request.data)
+        const html_ = data.outerHTML
+        console.log("Get simplified dom", data, html_)
+
         sendToDOm(request.data)
       }
     }

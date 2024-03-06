@@ -1,7 +1,7 @@
 import getAnnotatedDOM from "./getDOM";
 
-export function getSimplifiedDom() {
-  const fullDom = getAnnotatedDOM();
+export function getSimplifiedDom(pageDom: HTMLElement) {
+  const fullDom = getAnnotatedDOM(pageDom);
   console.log("fullDom", fullDom)
   if (!fullDom) return null;
 

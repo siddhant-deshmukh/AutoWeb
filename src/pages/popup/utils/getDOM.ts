@@ -68,9 +68,9 @@ function traverseDOM(node: Node, pageElements: HTMLElement[]) {
  * getAnnotatedDom returns the pageElements array and a cloned DOM
  * with data-pe-idx attributes added to each element in the copy.
  */
-export default function getAnnotatedDOM() {
+export default function getAnnotatedDOM(pageDom: HTMLElement) {
   currentElements = [];
-  const result = traverseDOM(document.documentElement, currentElements);
+  const result = traverseDOM(pageDom, currentElements);
   console.log("Result", result)
   return (result.clonedDOM as HTMLElement).outerHTML;
 }

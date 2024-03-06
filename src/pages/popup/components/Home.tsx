@@ -1,6 +1,5 @@
 import { useContext, useEffect } from 'react'
 import { AppContext } from '../AppContext'
-import { sendDom } from '../utils/sendDomGetCommands'
 
 export default function Home() {
 

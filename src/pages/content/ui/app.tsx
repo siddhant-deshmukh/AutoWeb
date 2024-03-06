@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { getSimplifiedDom } from './simplifyDOM';
+import { getSimplifiedDom } from '../../popup/utils/simplifyDOM';
 
 export default function App() {
   useEffect(() => {
@@ -16,11 +16,9 @@ export default function App() {
 
         // const data = { title, headings };
         // console.log("Here the dom data", data)
-        const data = getSimplifiedDom()
-        const html_ = data.outerHTML
-        console.log("Get simplified dom", data, html_)
+        
 
-        chrome.runtime.sendMessage({ action: "DOM_OBJECT_TO_BG_FROM_CONTENT", data: html_ }, function (response) {
+        chrome.runtime.sendMessage({ action: "DOM_OBJECT_TO_BG_FROM_CONTENT", data: document.documentElement }, function (response) {
           console.log("Message sent from content script", response);
         });
 
