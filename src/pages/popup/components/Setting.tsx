@@ -1,5 +1,5 @@
 import { useContext, useRef } from "react"
-import { AppContext } from "../AppContext"
+import { AppContext } from "../utils/AppContext"
 
 export default function Setting() {
   const inputRef = useRef<HTMLInputElement | null>(null)

@@ -1,11 +1,12 @@
 import { useContext, useEffect } from 'react'
-import { AppContext } from '../AppContext'
+import { AppContext } from '../utils/AppContext'
 import { getSimplifiedDom } from '../utils/simplifyDOM'
 import { sendDomGetCommand } from '../utils/sendDomGetCommands'
-import { callRPC } from '../utils/getFromContentScript'
+
 import { useState } from 'react'
 import { attachDebugger, detachDebugger } from '../utils/chromeDebugger'
 import { getObjectId } from '../utils/handleingDOMOperations'
+import { sleep } from '../utils/getFromContentScript'
 
 export default function Home() {
 
@@ -98,39 +99,59 @@ export default function Home() {
 
 
 async function executePrompt(user_prompt: string, apiKey: string, tabId: number) {
-  await attachDebugger(tabId)
+  try {
+    console.log("Executing prompt")
 
-  const compact_dom = await getSimplifiedDom()
-  const commands = await sendDomGetCommand(apiKey, { user_prompt, compact_dom: compact_dom.outerHTML })
+    await attachDebugger(tabId)
 
-  for (const command of commands) {
-    // const command = commands[i]
-    console.log("The command", command)
-    const objectId = await getObjectId(command.id, tabId);
-    console.log("Unique id", objectId, command)
+    const compact_dom = await getSimplifiedDom()
+    const taskJson = await sendDomGetCommand(apiKey, { user_prompt, compact_dom: compact_dom.outerHTML })
 
+    console.log(taskJson.tasks, taskJson["tasks"], Array.isArray(taskJson["tasks"]), taskJson)
 
-    if (!objectId) continue;
+    if(taskJson && Array.isArray(taskJson["tasks"])){
+      const tasks = taskJson.tasks
+      console.log("tasks", tasks)
 
-    // const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      for (const { about, command } of tasks) {
+        // const command = commands[i]
+        console.log(about, "The command", command)
+        const id = parseInt(command.id as string)
+        const objectId = await getObjectId(id, tabId);
+        console.log("Unique id", objectId, command)
+  
+  
+        if (!objectId) continue;
+  
+        // const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  
+        // const tabId = tabs[0].id;
+        // return activeTab.id
+        // const code = `document.getElementById('${objectId}').click();`;
+        // console.log("code", code, "executing")
+        // chrome.tabs.executeScript(activeTab.id, { code: code });
+  
+        const res = await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
+          objectId, // The objectId of the DOM node
+          functionDeclaration: "function() { this.click(); }", // Define a function to call click() on the node
+          returnByValue: false
+        })
+        await sleep(2000)
+        console.log("task 1 done", about)
+        // .catch((err) => {
+        //   console.error("While runing debugger", err)
+        // }).finally(() => {
+        //   detachDebugger(tabId)
+        // })
+      }
+  
+      console.log("got commands", tasks)
+    }
 
-    // const tabId = tabs[0].id;
-    // return activeTab.id
-    // const code = `document.getElementById('${objectId}').click();`;
-    // console.log("code", code, "executing")
-    // chrome.tabs.executeScript(activeTab.id, { code: code });
-
-    chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
-      objectId, // The objectId of the DOM node
-      functionDeclaration: "function() { this.click(); }", // Define a function to call click() on the node
-      returnByValue: false
-    }).catch((err)=>{
-      console.error("While runing debugger", err)
-    }).finally(()=>{
-      detachDebugger(tabId)
-    })
+    console.log("Detaching debugger")
+    detachDebugger(tabId)
+  } catch (err) {
+    detachDebugger(tabId)
+    console.error("While executing commads", err)
   }
-
-
-  console.log("got commands", commands)
 }

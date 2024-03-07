@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useCallback } from "react";
-import { attachDebugger, detachDebugger } from "./utils/chromeDebugger";
+import { attachDebugger, detachDebugger } from "./chromeDebugger";
 import { useRef } from "react";
 
 export const AppContext = React.createContext<{
@@ -73,9 +73,9 @@ export const AppContextProvider = ({ children }: { children: React.ReactNode }) 
     chrome.runtime.onMessage.addListener(eventListnerCallback);
     return () => {
       // console.log("removing event listner")
-      if(tabIdRef.current != -1){
-        detachDebugger(tabIdRef.current)
-      }
+      // if(tabIdRef.current != -1){
+      //   detachDebugger(tabIdRef.current)
+      // }
       chrome.runtime.onMessage.removeListener(eventListnerCallback)
     }
   }, [])

@@ -4,7 +4,7 @@ export async function getSimplifiedDom() {
   const fullDom = await callRPC('GET_COMPREESED_DOM', undefined, 3);
   if (!fullDom) return null;
 
-  console.log("fullDom", fullDom)
+  // console.log("fullDom", fullDom)
   if (!fullDom) return null;
 
   const dom = new DOMParser().parseFromString(fullDom, 'text/html');
@@ -18,6 +18,7 @@ export async function getSimplifiedDom() {
     interactiveElements
   ) as HTMLElement;
 
+  console.log("Simplified DOM", simplifiedDom)
   return simplifiedDom;
 }
 
