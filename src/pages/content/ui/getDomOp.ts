@@ -57,7 +57,6 @@ function traverseDOM(node: Node, pageElements: HTMLElement[]) {
     clonedNode.appendChild(result.clonedDOM);
   });
 
-  // console.log("TraverseDOM ------------------", node, pageElements, clonedNode)
   return {
     pageElements,
     clonedDOM: clonedNode,
@@ -76,9 +75,6 @@ export default function getAnnotatedDOM() {
 
 // idempotent function to get a unique id for an element
 export function getUniqueElementSelectorId(id: number): string {
-  // console.log("getUniqueElementSelectorId ------------", id, currentElements, currentElements[id])
-  // console.log("getUniqueElementSelectorId ------------", currentElements[id])
-
   const element = currentElements[id];
   // element may already have a unique id
 
@@ -87,6 +83,6 @@ export function getUniqueElementSelectorId(id: number): string {
   if (uniqueId) return uniqueId;
   uniqueId = Math.random().toString(36).substring(2, 10);
   element.setAttribute(TAXY_ELEMENT_SELECTOR, uniqueId);
-  // console.log("getUniqueElementSelectorId", id, uniqueId)
+  
   return uniqueId;
 }

@@ -5,7 +5,7 @@ console.log("Here in content script")
 chrome.runtime.onMessage.addListener(
   (message, sender, sendResponse): true | undefined => {
 
-    console.log("----------- content script Message: ", message, sendResponse)
+    // console.log("----------- content script Message: ", message, sendResponse)
     const type = message.type;
     if ( type === 'GET_COMPREESED_DOM') {
       const resp = getAnnotatedDOM();

@@ -41,12 +41,11 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
   current DOM "${compact_dom}"
 
   previous actions you have take "${JSON.stringify(aboutPrevTasks)}"
-  
+
   The JSON response:
   `
 
-  console.log(key, prompt)
-
+  
   const completion = await openai.createChatCompletion({
     model: 'gpt-4-0125-preview',
     messages: [
@@ -59,16 +58,15 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
 
   let taskstring = completion.data.choices[0].message?.content
 
-  console.log("taskString", taskstring)
   taskstring = taskstring.replace(/```/g, "")
   taskstring = taskstring.replace('json', "")
 
   // const taskList = extractCommands(taskstring).map((task) => {
   //   return extractAttributes(task)
   // })
-  console.log("CHAT_GPT", completion, taskstring)
+  // console.log("CHAT_GPT", completion, taskstring)
   const task = JSON.parse(taskstring)
-  console.log("task", task)
+  console.log("tasks", task)
 
   return task
 }
@@ -104,53 +102,3 @@ export function extractCommands(text: string) {
     return [];
   }
 }
-
-
-/**
- * 
- {
-    "id": "chatcmpl-908D0p21pXo90NP8sUB3J63fejEBq",
-    "object": "chat.completion",
-    "created": 1709818582,
-    "model": "gpt-4-0125-preview",
-    "choices": [
-        {
-            "index": 0,
-            "message": {
-                "role": "assistant",
-                "content": "To achieve the command \"list the first and second post and open messages\", you would need to perform the following actions on the DOM:\n\n1. To list the first post, you would interact with the first post's \"More options\" button to potentially reveal options related to the post (like, comment, share, etc.). This is assuming \"listing\" involves interacting with the post in some way. The first post's \"More options\" button is identified by the role \"button\" and id \"474\".\n\n```html\n<command>id={474} tagType={\"button\"} </command>\n```\n\n2. To list the second post, you would interact with the second post's \"More options\" button. The second post's \"More options\" button is identified by the role \"button\" and id \"634\".\n\n```html\n<command>id={634} tagType={\"button\"} </command>\n```\n\n3. To open messages, you would click on the link that opens the messages section. This is identified by the aria-label \"Direct messaging - 1 new notification link\", role \"link\", and id \"294\".\n\n```html\n<command>id={294} tagType={\"a\"} </command>\n```\n\nThese actions would allow you to interact with the first and second posts and then navigate to the messages section of the website."
-            },
-            "logprobs": null,
-            "finish_reason": "stop"
-        }
-    ],
-    "usage": {
-        "prompt_tokens": 5892,
-        "completion_tokens": 274,
-        "total_tokens": 6166
-    },
-    "system_fingerprint": "fp_00ceb2df5b"
-}
-
- */
-
-/**
- "```html
-<task>
-  <task_number>1</task_number>
-  <about>Like the first post</about>
-  <command>
-    <id>507</id>
-    <tagType>div</tagType>
-  </command>
-</task>
-<task>
-  <task_number>2</task_number>
-  <about>Open messages</about>
-  <command>
-    <id>290</id>
-    <tagType>a</tagType>
-  </command>
-</task>
-```"
- */

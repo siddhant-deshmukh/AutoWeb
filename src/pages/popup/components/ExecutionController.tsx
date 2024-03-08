@@ -14,8 +14,8 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
 }) {
 
   const firstTime = useRef<boolean>(true)
-  // const [shouldTerminate, setShouldTerminate] = useState<boolean>(false)
   const [tasksList, setTasksList] = useState<string[]>([])
+  const [terminateStatus, setterminateStatus] = useState<boolean>(false)
 
 
   const taskExecutionRef = useRef<ITaskExecutionState>({
@@ -41,11 +41,11 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
         const taskJson = await sendDomGetCommand(apiKey, { user_prompt, compact_dom: compact_dom.outerHTML }, taskExecutionRef.current.aboutPreviousTask)
         if (!taskExecutionRef.current.isTaskActive) break;
 
-        console.log(taskJson.tasks, taskJson["tasks"], Array.isArray(taskJson["tasks"]), taskJson)
+        // console.log(taskJson.tasks, taskJson["tasks"], Array.isArray(taskJson["tasks"]), taskJson)
 
         if (taskJson && Array.isArray(taskJson["tasks"])) {
           const tasks = taskJson.tasks
-          console.log("tasks", tasks)
+          console.log(i, "\tcurrent tasks", tasks)
 
 
           for (const { about, command } of tasks) {
@@ -81,13 +81,19 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
             }
 
             if (!taskExecutionRef.current.isTaskActive) break;
-            setTasksList((prev) => {
-              return prev.slice().concat([about])
-            })
+
 
             if (command.tag === 'a') {
+              console.log("Sleeping for 8 sec")
+              setTasksList((prev) => {
+                return prev.slice().concat([about, "sleeping for 8 sec"])
+              })
               await sleep(8000)
             } else {
+              console.log("Sleeping for 2 sec")
+              setTasksList((prev) => {
+                return prev.slice().concat([about])
+              })
               await sleep(2000)
             }
 
@@ -129,24 +135,38 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
   }, [])
 
   return (
-    <div className=''>
-      <div>
+    <div className='flex flex-col justify-end'>
+      <div className='w-full'>
         <button
           onClick={() => {
             taskExecutionRef.current = {
               ...taskExecutionRef.current,
               isTaskActive: false
             }
-            sleep(10000).finally(()=>{
+            setterminateStatus(true)
+            sleep(10000).finally(() => {
               setTaskState('terminated')
             })
           }}
-          className='px-3 py-1.5 rounded-xl bg-red-500 text-white font-bold'>Terminate</button>
+          disabled={terminateStatus}
+          className='px-3 py-1.5 rounded-xl ml-auto bg-red-500 text-white font-bold hover:bg-red-600'>
+          {
+            !terminateStatus &&
+            <span>Terminate</span>
+          }
+          {
+            terminateStatus &&
+            <span>Terminating</span>
+          }
+        </button>
       </div>
       <ul className='border mt-5 max-h-[200px] overflow-y-auto'>
         {
           tasksList.map((task, index) => {
-            return <li key={index}>{task}</li>
+            return <li key={index} className='text-start flex items-center border-b'>
+              <span className={`px-2 py-0.5 text-white ${(task.slice(0,5) === "sleep")?'bg-yellow-500':'bg-blue-500'}`}>{index}.</span>
+              <span className='px-2 py-0.5'>{task}</span>
+            </li>
           })
         }
       </ul>

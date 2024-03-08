@@ -10,11 +10,15 @@ export default function Setting() {
       <div className="flex space-x-5">
         <button
           onClick={() => { setCurrPage('main') }}
-          className="font-extrabold text-xl">{"<"}-</button>
+          className="font-extrabold text-xl">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+          </svg>
+        </button>
         <h3 className="text-lg">Settings</h3>
       </div>
 
-      <div className="mt-5 mr-auto border rounded-lg overflow-hidden w-auto flex">
+      <div className="mt-5 mr-auto border border-gray-700 rounded-lg overflow-hidden w-auto flex">
         <input ref={inputRef} type="password" className="px-3 py-0.5 outline-none" />
         <button
           onClick={() => {
@@ -26,6 +30,7 @@ export default function Setting() {
               }).then((value) => {
                 console.log("After sending", value)
                 setApiKey(inputRef.current?.value as string)
+                setCurrPage('main')
               });
             }
             // if (chrome && chrome?.storage && inputRef.current && inputRef.current.value.length > 0) {
