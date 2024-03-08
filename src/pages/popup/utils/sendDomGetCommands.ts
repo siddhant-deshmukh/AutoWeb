@@ -3,16 +3,24 @@ import {
   OpenAIApi
 } from 'openai'
 
-export async function sendDomGetCommand(key: string, { compact_dom, user_prompt }: { compact_dom: string, user_prompt: string }) {
+export async function sendDomGetCommand(key: string, { compact_dom, user_prompt }: { compact_dom: string, user_prompt: string }, aboutPrevTasks: string[]) {
   const openai = new OpenAIApi(
     new Configuration({
       apiKey: key,
     })
   );
-
+  
+  // So when I give you a COMMAND and the DOM of website you will tell me instuctions to perform on DOM to execute that COMMAND. You have to tell actions to do inside the DOM to achive this.
   // The output should be a stringified json string that I can later parse easily. Message should be string only json. Dont add backticks please . The format of json should be
+  
+  // You will be be given a task to perform and the current state of the DOM. You will also be given previous actions that you have taken.
+
   const prompt = `
-  So when I give you a COMMAND and the DOM of website you will tell me instuctions to perform on DOM to execute that COMMAND. You have to tell actions to do inside the DOM to achive this.
+  
+  You have a MAIN_TASK that you have to achieve. You will give me a task or multiple task to perform this MAIN_TASK. 
+  At each iteration I will give you current DOM state with what task actions you take previously. 
+  
+  Based on this give me task at each iteration. the task that you will give me will contain two part about and command.
 
   Do not include any explanations, only provide a  RFC8259 compliant JSON response  following this format without deviation. 
   {
@@ -28,10 +36,12 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
   }
   please note that in output it should be same HTML tag. I mean you can not give id and tagType of two different tags. For now only consider tagTypes of type "button", "a", "li", "div", "span". And if to perform the task I have to do more than one command then that is fine.
 
-  now the COMMAND is "${user_prompt}"
+  MAIN_TASK is "${user_prompt}"
 
-  and the DOM of the website is "${compact_dom}"
+  current DOM "${compact_dom}"
 
+  previous actions you have take "${JSON.stringify(aboutPrevTasks)}"
+  
   The JSON response:
   `
 
