@@ -1,6 +1,6 @@
 export const callRPC = async (
   type: string,
-  payload: number | undefined,
+  payload: number | number[] | undefined,
   maxTries = 1
 ) => {
 

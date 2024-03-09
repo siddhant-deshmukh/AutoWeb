@@ -2,9 +2,9 @@ import React, { useEffect, useCallback, useRef, useState } from 'react'
 
 import { sleep } from '../utils/getFromContentScript'
 import { getSimplifiedDom } from '../utils/simplifyDOM'
-import { getObjectId, typeText } from '../utils/handleingDOMOperations'
 import { sendDomGetCommand } from '../utils/sendDomGetCommands'
 import { attachDebugger, detachDebugger } from '../utils/chromeDebugger'
+import { domClick, getObjectId, setValue } from '../utils/handleingDOMOperations'
 
 export default function ExecutionController({ tabId, user_prompt, apiKey, setTaskState }: {
   tabId: number
@@ -31,7 +31,7 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
 
       await attachDebugger(tabId)
 
-      for (let i = 0; i < 9; i++) {
+      for (let i = 0; i < 20; i++) {
         if (!taskExecutionRef.current.isTaskActive) break;
         console.log(`---------------------            step ${i}            ----------------------------------------`)
 
@@ -49,81 +49,90 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
 
 
           for (const { about, commandType, command } of tasks) {
-            if (!taskExecutionRef.current.isTaskActive) break;
+            try {
+              if (!taskExecutionRef.current.isTaskActive) break;
 
-            // const command = commands[i]
-            console.log(about, "The command", command)
-            const id = parseInt(command.id as string)
-            const objectId = await getObjectId(id, tabId);
-            console.log("Unique id", objectId, command)
+              // const command = commands[i]
+              console.log(about, "The command", command)
+              const id = parseInt(command.id as string)
+              const objectId = await getObjectId(id, tabId);
+              console.log("Unique id", objectId, command)
 
 
-            if (!objectId) continue;
+              if (!objectId) continue;
 
-            // const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+              // const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
 
-            // const tabId = tabs[0].id;
-            // return activeTab.id
-            // const code = `document.getElementById('${objectId}').click();`;
-            // console.log("code", code, "executing")
-            // chrome.tabs.executeScript(activeTab.id, { code: code });
+              // const tabId = tabs[0].id;
+              // return activeTab.id
+              // const code = `document.getElementById('${objectId}').click();`;
+              // console.log("code", code, "executing")
+              // chrome.tabs.executeScript(activeTab.id, { code: code });
 
-            if (!taskExecutionRef.current.isTaskActive) break;
-            if (commandType === 'click') {
-              await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
-                objectId, // The objectId of the DOM node
-                functionDeclaration: "function() { this.click(); }", // Define a function to call click() on the node
-                returnByValue: false
-              })
-            } else if (commandType === 'typing' && typeof command.textToType === 'string') {
-              console.log(`function() { this.value = '${command.textToType}'; }`)
-              await typeText(tabId, command.textToType as string)
-              // const res = await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
-              //   objectId, // The objectId of the DOM node
-              //   functionDeclaration: `function() { this.value = '${command.textToType}'; }`, // Define a function to call click() on the node
-              //   returnByValue: false
-              // })
-              //@ts-ignore
-              // console.log("Typing ---------- ", res, res?.exceptionDetails)
-            } else if (commandType === 'finish ') {
-              console.log("----------------------      finished  ------------------------------------------")
+              if (!taskExecutionRef.current.isTaskActive) break;
+              if (commandType === 'click') {
+                await domClick(tabId, objectId)
+                // await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
+                //   objectId, // The objectId of the DOM node
+                //   functionDeclaration: "function() { this.click(); }", // Define a function to call click() on the node
+                //   returnByValue: false
+                // })
+              } else if (commandType === 'typing' && typeof command.textToType === 'string') {
+                await setValue(tabId, objectId, command.textToType)
+                // console.log(`function() { this.value = '${command.textToType}'; }`)
+                // await typeText(tabId, command.textToType as string)
+                // const res = await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
+                //   objectId, // The objectId of the DOM node
+                //   functionDeclaration: `function() { this.value = '${command.textToType}'; }`, // Define a function to call click() on the node
+                //   returnByValue: false
+                // })
+                //@ts-ignore
+                // console.log("Typing ---------- ", res, res?.exceptionDetails)
+              } else if (commandType === 'finish ') {
+                console.log("----------------------      finished  ------------------------------------------")
+                taskExecutionRef.current = {
+                  ...taskExecutionRef.current,
+                  isTaskActive: false
+                }
+              } else {
+                console.log("!!!!!!!!!!!!!!!!!!!!Something is wrong with this command!!!!!!!1111", command, about, commandType)
+              }
+
               taskExecutionRef.current = {
                 ...taskExecutionRef.current,
-                isTaskActive: false
+                aboutPreviousTask: taskExecutionRef.current.aboutPreviousTask.slice().concat([about])
               }
-            } else {
-              console.log("!!!!!!!!!!!!!!!!!!!!Something is wrong with this command!!!!!!!1111", command, about, commandType)
-            }
 
-            taskExecutionRef.current = {
-              ...taskExecutionRef.current,
-              aboutPreviousTask: taskExecutionRef.current.aboutPreviousTask.slice().concat([about])
-            }
-
-            if (!taskExecutionRef.current.isTaskActive) break;
+              if (!taskExecutionRef.current.isTaskActive) break;
 
 
-            if (command.tag === 'a') {
-              console.log("Sleeping for 8 sec")
+              if (command.tag === 'a') {
+                console.log("Sleeping for 8 sec")
+                setTasksList((prev) => {
+                  return prev.slice().concat([about, "sleeping for 8 sec"])
+                })
+                await sleep(8000)
+              } else {
+                console.log("Sleeping for 5 sec")
+                setTasksList((prev) => {
+                  return prev.slice().concat([about, "sleeping for 5 sec"])
+                })
+                await sleep(5000)
+              }
+
+              console.log("task", i, "  done", about)
+
+              // .catch((err) => {
+              //   console.error("While runing debugger", err)
+              // }).finally(() => {
+              //   detachDebugger(tabId)
+              // })
+            } catch (err) {
+              console.error("in command", command, about)
               setTasksList((prev) => {
-                return prev.slice().concat([about, "sleeping for 8 sec"])
+                return prev.slice().concat(['got error executing last command'])
               })
-              await sleep(8000)
-            } else {
-              console.log("Sleeping for 2 sec")
-              setTasksList((prev) => {
-                return prev.slice().concat([about])
-              })
-              await sleep(2000)
             }
-
-            console.log("task", i, "  done", about)
-
-            // .catch((err) => {
-            //   console.error("While runing debugger", err)
-            // }).finally(() => {
-            //   detachDebugger(tabId)
-            // })
           }
 
           console.log("got commands", tasks)

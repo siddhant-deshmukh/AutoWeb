@@ -7,6 +7,43 @@ async function sendCommand(method: string, tabId: number, params?: any) {
   return chrome.debugger.sendCommand({ tabId }, method, params);
 }
 
+export async function getCenterCoordinates(tabId: number, objectId: string) {
+  const { model } = (await sendCommand('DOM.getBoxModel', tabId, { objectId })) as any;
+  const [x1, y1, x2, y2, x3, y3, x4, y4] = model.border;
+  const centerX = (x1 + x3) / 2;
+  const centerY = (y1 + y3) / 2;
+  return { x: centerX, y: centerY };
+}
+
+async function selectAllText(tabId: number, x: number, y: number) {
+  await clickAtPosition(tabId, x, y, 3);
+}
+
+async function clickAtPosition(
+  tabId: number,
+  x: number,
+  y: number,
+  clickCount = 1
+): Promise<void> {
+  callRPC('ripple', [x, y]);
+
+  await sendCommand('Input.dispatchMouseEvent', tabId, {
+    type: 'mousePressed',
+    x,
+    y,
+    button: 'left',
+    clickCount,
+  });
+  await sendCommand('Input.dispatchMouseEvent', tabId, {
+    type: 'mouseReleased',
+    x,
+    y,
+    button: 'left',
+    clickCount,
+  });
+  await sleep(1000);
+}
+
 export async function typeText(tabId: number, text: string): Promise<void> {
   for (const char of text) {
     await chrome.debugger.sendCommand({ tabId }, 'Input.dispatchKeyEvent', {
@@ -22,6 +59,55 @@ export async function typeText(tabId: number, text: string): Promise<void> {
 
     await sleep(50);
   }
+}
+
+async function scrollIntoView(tabId: number, objectId: string) {
+  await sendCommand('Runtime.callFunctionOn', tabId, {
+    objectId,
+    functionDeclaration: scrollIntoViewFunction.toString(),
+  });
+  await sleep(1000);
+}
+
+function scrollIntoViewFunction() {
+  this.scrollIntoView({
+    block: 'center',
+    inline: 'center',
+    // behavior: 'smooth',
+  });
+}
+
+export async function setValue(
+  tabId: number,
+  objectId: string,
+  value: string
+): Promise<void> {
+  // const objectId = await getObjectId(payload.elementId);
+  await scrollIntoView(tabId, objectId);
+  const { x, y } = await getCenterCoordinates(tabId, objectId);
+
+  await selectAllText(tabId, x, y);
+  await typeText(tabId, value);
+  // blur the element
+  await blurFocusedElement(tabId);
+}
+
+export async function domClick(tabId: number, objectId: string) {
+  // const objectId = await getObjectId(payload.elementId);
+  await scrollIntoView(tabId, objectId);
+  const { x, y } = await getCenterCoordinates(tabId, objectId);
+  await clickAtPosition(tabId, x, y);
+}
+
+async function blurFocusedElement(tabId: number) {
+  const blurFocusedElementScript = `
+      if (document.activeElement) {
+        document.activeElement.blur();
+      }
+    `;
+  await sendCommand('Runtime.evaluate', tabId, {
+    expression: blurFocusedElementScript,
+  });
 }
 
 export async function getObjectId(originalId: number, tabId: number) {
