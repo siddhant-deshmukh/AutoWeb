@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useRef, useState } from 'react'
 
 import { sleep } from '../utils/getFromContentScript'
 import { getSimplifiedDom } from '../utils/simplifyDOM'
-import { getObjectId } from '../utils/handleingDOMOperations'
+import { getObjectId, typeText } from '../utils/handleingDOMOperations'
 import { sendDomGetCommand } from '../utils/sendDomGetCommands'
 import { attachDebugger, detachDebugger } from '../utils/chromeDebugger'
 
@@ -31,7 +31,7 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
 
       await attachDebugger(tabId)
 
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 9; i++) {
         if (!taskExecutionRef.current.isTaskActive) break;
         console.log(`---------------------            step ${i}            ----------------------------------------`)
 
@@ -48,7 +48,7 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
           console.log(i, "\tcurrent tasks", tasks)
 
 
-          for (const { about, command } of tasks) {
+          for (const { about, commandType, command } of tasks) {
             if (!taskExecutionRef.current.isTaskActive) break;
 
             // const command = commands[i]
@@ -69,11 +69,31 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
             // chrome.tabs.executeScript(activeTab.id, { code: code });
 
             if (!taskExecutionRef.current.isTaskActive) break;
-            const res = await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
-              objectId, // The objectId of the DOM node
-              functionDeclaration: "function() { this.click(); }", // Define a function to call click() on the node
-              returnByValue: false
-            })
+            if (commandType === 'click') {
+              await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
+                objectId, // The objectId of the DOM node
+                functionDeclaration: "function() { this.click(); }", // Define a function to call click() on the node
+                returnByValue: false
+              })
+            } else if (commandType === 'typing' && typeof command.textToType === 'string') {
+              console.log(`function() { this.value = '${command.textToType}'; }`)
+              await typeText(tabId, command.textToType as string)
+              // const res = await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
+              //   objectId, // The objectId of the DOM node
+              //   functionDeclaration: `function() { this.value = '${command.textToType}'; }`, // Define a function to call click() on the node
+              //   returnByValue: false
+              // })
+              //@ts-ignore
+              // console.log("Typing ---------- ", res, res?.exceptionDetails)
+            } else if (commandType === 'finish ') {
+              console.log("----------------------      finished  ------------------------------------------")
+              taskExecutionRef.current = {
+                ...taskExecutionRef.current,
+                isTaskActive: false
+              }
+            } else {
+              console.log("!!!!!!!!!!!!!!!!!!!!Something is wrong with this command!!!!!!!1111", command, about, commandType)
+            }
 
             taskExecutionRef.current = {
               ...taskExecutionRef.current,
@@ -164,7 +184,7 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
         {
           tasksList.map((task, index) => {
             return <li key={index} className='text-start flex items-center border-b'>
-              <span className={`px-2 py-0.5 text-white ${(task.slice(0,5) === "sleep")?'bg-yellow-500':'bg-blue-500'}`}>{index}.</span>
+              <span className={`px-2 py-0.5 text-white ${(task.slice(0, 5) === "sleep") ? 'bg-yellow-500' : 'bg-blue-500'}`}>{index}.</span>
               <span className='px-2 py-0.5'>{task}</span>
             </li>
           })
