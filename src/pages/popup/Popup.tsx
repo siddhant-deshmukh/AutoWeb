@@ -3,7 +3,7 @@ import useStorage from '@src/shared/hooks/useStorage';
 import exampleThemeStorage from '@src/shared/storages/exampleThemeStorage';
 import withSuspense from '@src/shared/hoc/withSuspense';
 import withErrorBoundary from '@src/shared/hoc/withErrorBoundary';
-import { AppContextProvider } from './utils/AppContext';
+import { AppContextProvider } from './AppContext';
 import App from './App';
 
 const Popup = () => {

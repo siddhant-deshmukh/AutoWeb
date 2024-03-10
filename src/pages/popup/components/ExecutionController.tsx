@@ -5,6 +5,8 @@ import { getSimplifiedDom } from '../utils/simplifyDOM'
 import { sendDomGetCommand } from '../utils/sendDomGetCommands'
 import { attachDebugger, detachDebugger } from '../utils/chromeDebugger'
 import { domClick, getObjectId, setValue } from '../utils/handleingDOMOperations'
+import templatize from '../utils/templatize'
+import { CompletionUsage } from 'openai/resources'
 
 export default function ExecutionController({ tabId, user_prompt, apiKey, setTaskState }: {
   tabId: number
@@ -16,7 +18,11 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
   const firstTime = useRef<boolean>(true)
   const [tasksList, setTasksList] = useState<string[]>([])
   const [terminateStatus, setterminateStatus] = useState<boolean>(false)
-
+  const [usage, setUsage] = useState<CompletionUsage>({
+    completion_tokens: 0,
+    prompt_tokens: 0,
+    total_tokens: 0
+  })
 
   const taskExecutionRef = useRef<ITaskExecutionState>({
     isTaskActive: true,
@@ -31,16 +37,34 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
 
       await attachDebugger(tabId)
 
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 1; i++) {
         if (!taskExecutionRef.current.isTaskActive) break;
         console.log(`---------------------            step ${i}            ----------------------------------------`)
 
-        const compact_dom = await getSimplifiedDom()
+
+        const dom = await getSimplifiedDom()
+        const compact_dom = templatize(dom.outerHTML)
         if (!taskExecutionRef.current.isTaskActive) break;
 
-        const taskJson = await sendDomGetCommand(apiKey, { user_prompt, compact_dom: compact_dom.outerHTML }, taskExecutionRef.current.aboutPreviousTask)
+        const taskJson = await sendDomGetCommand(apiKey, { user_prompt, compact_dom: compact_dom }, taskExecutionRef.current.aboutPreviousTask)
+        console.log(taskJson)
         if (!taskExecutionRef.current.isTaskActive) break;
-
+        if(taskJson.token_count > 20000 || taskJson.usage === undefined){
+          setTasksList((prev) => {
+            return prev.slice().concat(["Aborting, token limit exceed"])
+          })
+          break;
+        }
+        setUsage((prev)=>{
+          if(taskJson.usage){
+            return {
+              completion_tokens: prev.completion_tokens + taskJson.usage.completion_tokens,
+              prompt_tokens: prev.prompt_tokens + taskJson.usage.prompt_tokens,
+              total_tokens: prev.total_tokens + taskJson.usage.total_tokens,
+            }
+          }
+          return {...prev}
+        })
         // console.log(taskJson.tasks, taskJson["tasks"], Array.isArray(taskJson["tasks"]), taskJson)
 
         if (taskJson && Array.isArray(taskJson["tasks"])) {
@@ -140,8 +164,14 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
 
         console.log("Detaching debugger")
       }
+      
+      console.log("Closing")
+      firstTime.current = false
       detachDebugger(tabId)
     } catch (err) {
+      
+      console.log("Closing")
+      firstTime.current = false
       detachDebugger(tabId)
       console.error("While executing commads", err)
     }
@@ -165,7 +195,11 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
 
   return (
     <div className='flex flex-col justify-end'>
-      <div className='w-full'>
+      <div className='flex justify-between w-full items-center space-x-32'>
+        <div className='flex w-full justify-between'>
+          <div>Total: {usage.total_tokens}</div>
+          <div>Prompt: {usage.prompt_tokens}</div>
+        </div>
         <button
           onClick={() => {
             taskExecutionRef.current = {

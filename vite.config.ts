@@ -3,6 +3,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path, { resolve } from 'path';
 import { getCacheInvalidationKey, getPlugins } from './utils/vite';
+// import wasm from "vite-plugin-wasm";
+// import topLevelAwait from "vite-plugin-top-level-await";
 
 const rootDir = resolve(__dirname);
 const srcDir = resolve(rootDir, 'src');
@@ -20,6 +22,7 @@ export default defineConfig({
       '@pages': pagesDir,
     },
   },
+  // wasm(), topLevelAwait()
   plugins: [...getPlugins(isDev), react()],
   publicDir: resolve(rootDir, 'public'),
   build: {

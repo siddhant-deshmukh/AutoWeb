@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useContext, useEffect } from 'react'
 
-import { AppContext } from '../utils/AppContext'
+import { AppContext } from '../AppContext'
 import ExecutionController from './ExecutionController'
 
 

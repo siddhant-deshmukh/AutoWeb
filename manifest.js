@@ -16,7 +16,7 @@ const manifest = {
   version: packageJson.version,
   description: '__MSG_extensionDescription__',
   permissions: [
-    'storage', 
+    'storage',
     'sidePanel',
     "tabs",
     "activeTab",
@@ -63,6 +63,12 @@ const manifest = {
       matches: ['*://*/*'],
     },
   ],
+  // 'self'
+  // 'object-src': 'self'
+  // content_security_policy: {
+  //   "extension_pages": "script-src 'self'; object-src 'self';",
+  //   "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals; script-src 'self' 'unsafe-inline' 'unsafe-eval'; child-src 'self';"
+  // },
 };
 
 export default manifest;

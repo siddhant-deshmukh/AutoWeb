@@ -72,6 +72,7 @@ function traverseDOM(node: Node, pageElements: HTMLElement[]) {
 export default function getAnnotatedDOM() {
   currentElements = [];
   const result = traverseDOM(document.documentElement, currentElements);
+  console.log(result.clonedDOM)
   return (result.clonedDOM as HTMLElement).outerHTML;
 }
 

@@ -22,9 +22,11 @@
   "type": "module",
   "dependencies": {
     "construct-style-sheets-polyfill": "3.1.0",
+    "lodash": "^4.17.21",
     "openai": "^4.28.4",
     "react": "18.2.0",
     "react-dom": "18.2.0",
+    "tiktoken": "^1.0.13",
     "webextension-polyfill": "0.10.0"
   },
   "devDependencies": {
@@ -33,6 +35,7 @@
     "@rollup/plugin-typescript": "11.1.6",
     "@testing-library/react": "14.0.0",
     "@types/chrome": "0.0.251",
+    "@types/lodash": "^4.14.202",
     "@types/node": "20.8.10",
     "@types/react": "18.2.37",
     "@types/react-dom": "18.2.18",
@@ -60,6 +63,8 @@
     "tslib": "2.6.2",
     "typescript": "5.2.2",
     "vite": "5.0.12",
+    "vite-plugin-top-level-await": "^1.4.1",
+    "vite-plugin-wasm": "^3.3.0",
     "vitest": "^1.2.2",
     "ws": "8.14.2"
   },

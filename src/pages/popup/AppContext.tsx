@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useCallback } from "react";
-import { attachDebugger, detachDebugger } from "./chromeDebugger";
+import { attachDebugger, detachDebugger } from "./utils/chromeDebugger";
 import { useRef } from "react";
 
 export const AppContext = React.createContext<{

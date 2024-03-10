@@ -1,5 +1,5 @@
 import { useContext } from "react"
-import { AppContext } from "./utils/AppContext"
+import { AppContext } from "./AppContext"
 import Home from "./components/Home"
 import Setting from "./components/Setting"
 

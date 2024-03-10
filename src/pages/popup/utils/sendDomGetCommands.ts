@@ -1,4 +1,5 @@
 import { OpenAI } from 'openai'
+import { CountTokens } from './countToken';
 
 export async function sendDomGetCommand(key: string, { compact_dom, user_prompt }: { compact_dom: string, user_prompt: string }, aboutPrevTasks: string[]) {
   // const openai = new OpenAIApi(
@@ -7,14 +8,7 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
   //   })
   // );
 
-  // const openai = new OpenAIApi(
-  //   new Configuration({
-  //     apiKey: key,
-  //     basePath: 'https://api.endpoints.anyscale.com/v1'
-  //   })
-  // )
-  const anyscale = new OpenAI({
-    baseURL: "https://api.endpoints.anyscale.com/v1",
+  const openai = new OpenAI({
     apiKey: key,
     dangerouslyAllowBrowser: true
   });
@@ -32,7 +26,7 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
   Based on this give me task at each iteration. the task that you will give me will contain two part about and command.
 
   Do not include any explanations, only provide a  RFC8259 compliant JSON response  following this format without deviation. 
-  {dangerouslyAllowBrowser: true
+  {
     tasks : [
       {
         about: {a string telling what the command. include what the command prpose and what elemeent it is selecting and why.},
@@ -56,10 +50,14 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
   The JSON response:
   `
 
-  console.log('prompt', prompt)
+  const token_count = CountTokens(prompt)
+  console.log(token_count,  '\n\nprompt', prompt)
+  if (token_count > 10000) {
+    return { msg: 'exceeding token limit', token_count, usage: undefined }
+  }
 
-  const completion = await anyscale.chat.completions.create({
-    model: 'meta-llama/Llama-2-70b-chat-hf', // 'mistralai/Mixtral-8x7B-Instruct-v0.1', //  'gpt-4-0125-preview',
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4-0125-preview', // 'mistralai/Mixtral-8x7B-Instruct-v0.1', //  'gpt-4-0125-preview',
     messages: [
       { role: 'system', "content": "Imagine yourself a chrome browser automater" },
       { role: 'user', content: prompt },
@@ -68,15 +66,15 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
     temperature: 0,
   });
 
-  // const completion = await ope.chat.completions.create({
-  //   model: "mistralai/Mistral-7B-Instruct-v0.1",
-  //   messages: [{ "role": "system", "content": "You are a helpful assistant." },
-  //   { "role": "user", "content": prompt }],
-  //   temperature: 0.1,
-  //   stream: true
-  // });
+  // // const completion = await ope.chat.completions.create({
+  // //   model: "mistralai/Mistral-7B-Instruct-v0.1",
+  // //   messages: [{ "role": "system", "content": "You are a helpful assistant." },
+  // //   { "role": "user", "content": prompt }],
+  // //   temperature: 0.1,
+  // //   stream: true
+  // // });
 
-  console.log("Completions", completion)
+  console.log("Completions", completion, completion.usage)
   let taskstring = completion.choices[0].message?.content
 
   taskstring = taskstring.replace(/```/g, "")
@@ -89,7 +87,7 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
   const task = JSON.parse(taskstring)
   console.log("tasks", task)
 
-  return task
+  return { tasks: task.tasks, msg: 'successful', token_count, usage: completion.usage }
 }
 
 
