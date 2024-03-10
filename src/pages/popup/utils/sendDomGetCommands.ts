@@ -1,20 +1,29 @@
-import {
-  Configuration,
-  OpenAIApi
-} from 'openai'
+import { OpenAI } from 'openai'
 
 export async function sendDomGetCommand(key: string, { compact_dom, user_prompt }: { compact_dom: string, user_prompt: string }, aboutPrevTasks: string[]) {
-  const openai = new OpenAIApi(
-    new Configuration({
-      apiKey: key,
-    })
-  );
-  
+  // const openai = new OpenAIApi(
+  //   new Configuration({
+  //     apiKey: key,
+  //   })
+  // );
+
+  // const openai = new OpenAIApi(
+  //   new Configuration({
+  //     apiKey: key,
+  //     basePath: 'https://api.endpoints.anyscale.com/v1'
+  //   })
+  // )
+  const anyscale = new OpenAI({
+    baseURL: "https://api.endpoints.anyscale.com/v1",
+    apiKey: key,
+    dangerouslyAllowBrowser: true
+  });
+
   // So when I give you a COMMAND and the DOM of website you will tell me instuctions to perform on DOM to execute that COMMAND. You have to tell actions to do inside the DOM to achive this.
   // The output should be a stringified json string that I can later parse easily. Message should be string only json. Dont add backticks please . The format of json should be
   // For now only consider tagTypes of type "button", "a", "li", "div", "span".
   // You will be be given a task to perform and the current state of the DOM. You will also be given previous actions that you have taken.
-  
+
   const prompt = `
   
   You have a MAIN_TASK that you have to achieve. You will give me a task or multiple task to perform this MAIN_TASK. 
@@ -23,7 +32,7 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
   Based on this give me task at each iteration. the task that you will give me will contain two part about and command.
 
   Do not include any explanations, only provide a  RFC8259 compliant JSON response  following this format without deviation. 
-  {
+  {dangerouslyAllowBrowser: true
     tasks : [
       {
         about: {a string telling what the command. include what the command prpose and what elemeent it is selecting and why.},
@@ -48,9 +57,9 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
   `
 
   console.log('prompt', prompt)
-  
-  const completion = await openai.createChatCompletion({
-    model: 'gpt-4-0125-preview',
+
+  const completion = await anyscale.chat.completions.create({
+    model: 'meta-llama/Llama-2-70b-chat-hf', // 'mistralai/Mixtral-8x7B-Instruct-v0.1', //  'gpt-4-0125-preview',
     messages: [
       { role: 'system', "content": "Imagine yourself a chrome browser automater" },
       { role: 'user', content: prompt },
@@ -59,7 +68,16 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
     temperature: 0,
   });
 
-  let taskstring = completion.data.choices[0].message?.content
+  // const completion = await ope.chat.completions.create({
+  //   model: "mistralai/Mistral-7B-Instruct-v0.1",
+  //   messages: [{ "role": "system", "content": "You are a helpful assistant." },
+  //   { "role": "user", "content": prompt }],
+  //   temperature: 0.1,
+  //   stream: true
+  // });
+
+  console.log("Completions", completion)
+  let taskstring = completion.choices[0].message?.content
 
   taskstring = taskstring.replace(/```/g, "")
   taskstring = taskstring.replace('json', "")
