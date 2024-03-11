@@ -1,17 +1,18 @@
+import { CompletionUsage } from 'openai/resources'
 import React, { useEffect, useCallback, useRef, useState } from 'react'
 
+import templatize from '../utils/templatize'
 import { sleep } from '../utils/getFromContentScript'
 import { getSimplifiedDom } from '../utils/simplifyDOM'
 import { sendDomGetCommand } from '../utils/sendDomGetCommands'
 import { attachDebugger, detachDebugger } from '../utils/chromeDebugger'
 import { domClick, getObjectId, setValue } from '../utils/handleingDOMOperations'
-import templatize from '../utils/templatize'
-import { CompletionUsage } from 'openai/resources'
 
-export default function ExecutionController({ tabId, user_prompt, apiKey, setTaskState }: {
+export default function ExecutionController({ tabId, user_prompt, apiKey, setInfo, setTaskState }: {
   tabId: number
   apiKey: string
   user_prompt: string
+  setInfo: React.Dispatch<React.SetStateAction<any[]>>
   setTaskState: React.Dispatch<React.SetStateAction<"" | "executing" | "terminated">>
 }) {
 
@@ -24,6 +25,7 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
     total_tokens: 0
   })
 
+
   const taskExecutionRef = useRef<ITaskExecutionState>({
     isTaskActive: true,
     aboutPreviousTask: [],
@@ -35,91 +37,122 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
     try {
       console.log("Executing prompt")
 
+      await sleep(1000)
+
       await attachDebugger(tabId)
 
-      for (let i = 0; i < 1; i++) {
+      for (let i = 0; i < 15; i++) {
         if (!taskExecutionRef.current.isTaskActive) break;
         console.log(`---------------------            step ${i}            ----------------------------------------`)
 
+        const currentTab = await chrome.tabs.get(tabId)
+
 
         const dom = await getSimplifiedDom()
-        const compact_dom = templatize(dom.outerHTML)
+        const compact_dom = dom.outerHTML
+        // const compact_dom = templatize(dom.outerHTML)
         if (!taskExecutionRef.current.isTaskActive) break;
 
-        const taskJson = await sendDomGetCommand(apiKey, { user_prompt, compact_dom: compact_dom }, taskExecutionRef.current.aboutPreviousTask)
-        console.log(taskJson)
+        const taskJson = await sendDomGetCommand(apiKey, { user_prompt, compact_dom: compact_dom, currentPageUrl: currentTab.url?.split("?")[0] }, taskExecutionRef.current.aboutPreviousTask)
+        // console.log(taskJson)
         if (!taskExecutionRef.current.isTaskActive) break;
-        if(taskJson.token_count > 20000 || taskJson.usage === undefined){
+        if (taskJson.token_count > 20000 || taskJson.usage === undefined) {
           setTasksList((prev) => {
             return prev.slice().concat(["Aborting, token limit exceed"])
           })
           break;
         }
-        setUsage((prev)=>{
-          if(taskJson.usage){
+        setUsage((prev) => {
+          if (taskJson.usage) {
             return {
               completion_tokens: prev.completion_tokens + taskJson.usage.completion_tokens,
               prompt_tokens: prev.prompt_tokens + taskJson.usage.prompt_tokens,
               total_tokens: prev.total_tokens + taskJson.usage.total_tokens,
             }
           }
-          return {...prev}
+          return { ...prev }
         })
         // console.log(taskJson.tasks, taskJson["tasks"], Array.isArray(taskJson["tasks"]), taskJson)
+
+        // if (taskJson && taskJson.info && Array.isArray(taskJson.info) && taskJson.info.length > 0) {
+        //   setInfo((prev) => {
+        //     return prev.slice().concat(taskJson.info)
+        //   })
+        // }
 
         if (taskJson && Array.isArray(taskJson["tasks"])) {
           const tasks = taskJson.tasks
           console.log(i, "\tcurrent tasks", tasks)
 
 
+
           for (const { about, commandType, command } of tasks) {
             try {
               if (!taskExecutionRef.current.isTaskActive) break;
 
-              // const command = commands[i]
-              console.log(about, "The command", command)
-              const id = parseInt(command.id as string)
-              const objectId = await getObjectId(id, tabId);
-              console.log("Unique id", objectId, command)
-
-
-              if (!objectId) continue;
-
-              // const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-
-              // const tabId = tabs[0].id;
-              // return activeTab.id
-              // const code = `document.getElementById('${objectId}').click();`;
-              // console.log("code", code, "executing")
-              // chrome.tabs.executeScript(activeTab.id, { code: code });
-
-              if (!taskExecutionRef.current.isTaskActive) break;
-              if (commandType === 'click') {
-                await domClick(tabId, objectId)
-                // await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
-                //   objectId, // The objectId of the DOM node
-                //   functionDeclaration: "function() { this.click(); }", // Define a function to call click() on the node
-                //   returnByValue: false
-                // })
-              } else if (commandType === 'typing' && typeof command.textToType === 'string') {
-                await setValue(tabId, objectId, command.textToType)
-                // console.log(`function() { this.value = '${command.textToType}'; }`)
-                // await typeText(tabId, command.textToType as string)
-                // const res = await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
-                //   objectId, // The objectId of the DOM node
-                //   functionDeclaration: `function() { this.value = '${command.textToType}'; }`, // Define a function to call click() on the node
-                //   returnByValue: false
-                // })
-                //@ts-ignore
-                // console.log("Typing ---------- ", res, res?.exceptionDetails)
-              } else if (commandType === 'finish ') {
+              if (commandType === 'back') {
+                console.log("Going back")
+                await chrome.tabs.goBack(tabId)
+              } else if (commandType === 'forward') {
+                console.log("Going forward")
+                await chrome.tabs.goForward(tabId)
+              } else if (commandType === 'finish') {
                 console.log("----------------------      finished  ------------------------------------------")
-                taskExecutionRef.current = {
-                  ...taskExecutionRef.current,
-                  isTaskActive: false
-                }
+                // taskExecutionRef.current = {
+                //   ...taskExecutionRef.current,
+                //   isTaskActive: false
+                // }
+              } else if (commandType === 'scanning-result' && command.result) {
+                console.log("-------     Result --:", command.result)
+                setInfo((prev) => {
+                  return prev.slice().concat(JSON.stringify(command.result))
+                })
               } else {
-                console.log("!!!!!!!!!!!!!!!!!!!!Something is wrong with this command!!!!!!!1111", command, about, commandType)
+                // const command = commands[i]
+                console.log(about, "The command", command)
+                const id = parseInt(command.id as string)
+                const objectId = await getObjectId(id, tabId);
+                console.log("Unique id", objectId, command)
+
+
+                if (!objectId) continue;
+
+                // const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+
+                // const tabId = tabs[0].id;
+                // return activeTab.id
+                // const code = `document.getElementById('${objectId}').click();`;
+                // console.log("code", code, "executing")
+                // chrome.tabs.executeScript(activeTab.id, { code: code });
+
+                if (!taskExecutionRef.current.isTaskActive) break;
+
+                if (commandType === 'click') {
+                  console.log("Going to click")
+                  if (command.target === "_blank") {
+                    console.error("Command target _blank")
+                  } else {
+                    await domClick(tabId, objectId)
+                  }
+                  // await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
+                  //   objectId, // The objectId of the DOM node
+                  //   functionDeclaration: "function() { this.click(); }", // Define a function to call click() on the node
+                  //   returnByValue: false
+                  // })
+                } else if (commandType === 'typing' && typeof command.textToType === 'string') {
+                  await setValue(tabId, objectId, command.textToType)
+                  // console.log(`function() { this.value = '${command.textToType}'; }`)
+                  // await typeText(tabId, command.textToType as string)
+                  // const res = await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
+                  //   objectId, // The objectId of the DOM node
+                  //   functionDeclaration: `function() { this.value = '${command.textToType}'; }`, // Define a function to call click() on the node
+                  //   returnByValue: false
+                  // })
+                  //@ts-ignore
+                  // console.log("Typing ---------- ", res, res?.exceptionDetails)
+                } else {
+                  console.log("!!!!!!!!!!!!!!!!!!!!Something is wrong with this command!!!!!!!1111", command, about, commandType)
+                }
               }
 
               taskExecutionRef.current = {
@@ -129,19 +162,18 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
 
               if (!taskExecutionRef.current.isTaskActive) break;
 
-
               if (command.tag === 'a') {
-                console.log("Sleeping for 8 sec")
+                console.log("Sleeping for 2 sec")
                 setTasksList((prev) => {
-                  return prev.slice().concat([about, "sleeping for 8 sec"])
+                  return prev.slice().concat([about, "sleeping for 2 sec"])
                 })
-                await sleep(8000)
+                await sleep(2000)
               } else {
-                console.log("Sleeping for 5 sec")
+                console.log("Sleeping for 1 sec")
                 setTasksList((prev) => {
-                  return prev.slice().concat([about, "sleeping for 5 sec"])
+                  return prev.slice().concat([about, "sleeping for 1 sec"])
                 })
-                await sleep(5000)
+                await sleep(1000)
               }
 
               console.log("task", i, "  done", about)
@@ -152,9 +184,9 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
               //   detachDebugger(tabId)
               // })
             } catch (err) {
-              console.error("in command", command, about)
+              console.error("in command", command, about, err)
               setTasksList((prev) => {
-                return prev.slice().concat(['got error executing last command'])
+                return prev.slice().concat([`got error executing last command: "${about}"`])
               })
             }
           }
@@ -164,12 +196,12 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setTas
 
         console.log("Detaching debugger")
       }
-      
+
       console.log("Closing")
       firstTime.current = false
       detachDebugger(tabId)
     } catch (err) {
-      
+
       console.log("Closing")
       firstTime.current = false
       detachDebugger(tabId)

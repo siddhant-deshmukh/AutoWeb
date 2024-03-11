@@ -1,7 +1,9 @@
 import { OpenAI } from 'openai'
 import { CountTokens } from './countToken';
 
-export async function sendDomGetCommand(key: string, { compact_dom, user_prompt }: { compact_dom: string, user_prompt: string }, aboutPrevTasks: string[]) {
+export async function sendDomGetCommand(
+  key: string,
+  { compact_dom, user_prompt, currentPageUrl }: { compact_dom: string, user_prompt: string, currentPageUrl: string }, aboutPrevTasks: string[]) {
   // const openai = new OpenAIApi(
   //   new Configuration({
   //     apiKey: key,
@@ -17,33 +19,49 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
   // The output should be a stringified json string that I can later parse easily. Message should be string only json. Dont add backticks please . The format of json should be
   // For now only consider tagTypes of type "button", "a", "li", "div", "span".
   // You will be be given a task to perform and the current state of the DOM. You will also be given previous actions that you have taken.
+  // And if to perform the task I have to do more than one command then that is fine.
 
+  // currently on the page "${currentPageUrl}"
+
+  // If you wanted to add some info that MAIN_TASK requires from current page like summerising page or getting some data you can add it in pageInfo array.
+  // pageInfo: [
+  //   {
+  //     ...{Can write in any valid json format whatever fields you like}
+  //   }
+  // ]
   const prompt = `
   
-  You have a MAIN_TASK that you have to achieve. You will give me a task or multiple task to perform this MAIN_TASK. 
+  You have a MAIN_TASK that you have to achieve. You will give me a task to perform this MAIN_TASK. 
   At each iteration I will give you current DOM state with what task actions you take previously. 
-  
+
   Based on this give me task at each iteration. the task that you will give me will contain two part about and command.
+
+  commandTypes: 'click' and 'typing' means click and typing operation to perform in DOM, 'back' and 'forward' means clicking navigation button in chrome i.e going on previous or next page, 'scanning-result' means you scanned the dom and giving some insights like summerizing or giving details if user asked. 
 
   Do not include any explanations, only provide a  RFC8259 compliant JSON response  following this format without deviation. 
   {
     tasks : [
       {
-        about: {a string telling what the command. include what the command prpose and what elemeent it is selecting and why.},
-        commandType: {either 'typing', 'click', 'finish' showing the type of command is either clicking or typing or task is finished},
+        about: {A string explaining task, what it does? and reason why are you doing this?. I will send all this as previous actions which will help toward completing MAMAIN_TASKIN_TASK},
+        commandType: {either 'typing', 'click', 'back', 'forward', 'scanning-result'},
         command: {
           id: {id number of the selected element },
           tag: {tag of the element like "button", "a"},
-          textToType: {in case of wanted to type something write the text here}
+          textToType: {in case of wanted to type something write the text here},
+          target: {if anchor tag then its target e.g "_blank"},
+          result: {in case you wanted to give result give it here in any valid json format}
         }
       }
-    ]
+    ],
+    
   }
-  please note that in output it should be same HTML tag. I mean you can not give id and tagType of two different tags. And if to perform the task I have to do more than one command then that is fine.
+  please note that in output it should be same HTML tag. I mean you can not give id and tagType of two different tags. Give one task and command at a time
 
   MAIN_TASK is "${user_prompt}"
 
   current DOM "${compact_dom}"
+
+  current page url "${currentPageUrl}"
 
   previous actions you have take "${JSON.stringify(aboutPrevTasks)}"
 
@@ -51,8 +69,8 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
   `
 
   const token_count = CountTokens(prompt)
-  console.log(token_count,  '\n\nprompt', prompt)
-  if (token_count > 10000) {
+  console.log(token_count, '\n\nprompt', prompt)
+  if (token_count > 20000) {
     return { msg: 'exceeding token limit', token_count, usage: undefined }
   }
 
@@ -62,7 +80,7 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
       { role: 'system', "content": "Imagine yourself a chrome browser automater" },
       { role: 'user', content: prompt },
     ],
-    max_tokens: 500,
+    max_tokens: 1000,
     temperature: 0,
   });
 
@@ -81,7 +99,7 @@ export async function sendDomGetCommand(key: string, { compact_dom, user_prompt 
   taskstring = taskstring.replace('json', "")
 
   // const taskList = extractCommands(taskstring).map((task) => {
-  //   return extractAttributes(task)
+  //   return extractAttributes(task)usage: completion.usage
   // })
   console.log("CHAT_GPT", completion, taskstring)
   const task = JSON.parse(taskstring)
