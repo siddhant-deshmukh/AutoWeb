@@ -7,6 +7,7 @@ import { getSimplifiedDom } from '../utils/simplifyDOM'
 import { sendDomGetCommand } from '../utils/sendDomGetCommands'
 import { attachDebugger, detachDebugger } from '../utils/chromeDebugger'
 import { domClick, getObjectId, setValue } from '../utils/handleingDOMOperations'
+import compressDom from '../utils/compressDOM'
 
 export default function ExecutionController({ tabId, user_prompt, apiKey, setInfo, setTaskState }: {
   tabId: number
@@ -41,7 +42,7 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setInf
 
       await attachDebugger(tabId)
 
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 1; i++) {
         if (!taskExecutionRef.current.isTaskActive) break;
         console.log(`---------------------            step ${i}            ----------------------------------------`)
 
@@ -49,10 +50,13 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setInf
 
 
         const dom = await getSimplifiedDom()
-        const compact_dom = dom.outerHTML
-        // const compact_dom = templatize(dom.outerHTML)
+        // const compact_dom = dom.outerHTML
+        const compact_dom = templatize(dom.outerHTML)
+        const compact_dom_2 = compressDom(dom)
         if (!taskExecutionRef.current.isTaskActive) break;
-
+        
+        console.log("compact_dom", compact_dom)
+        break;
         const taskJson = await sendDomGetCommand(apiKey, { user_prompt, compact_dom: compact_dom, currentPageUrl: currentTab.url?.split("?")[0] }, taskExecutionRef.current.aboutPreviousTask)
         // console.log(taskJson)
         if (!taskExecutionRef.current.isTaskActive) break;

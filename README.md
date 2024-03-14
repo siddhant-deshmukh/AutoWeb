@@ -20,6 +20,8 @@
   - [For Chrome: ](#for-chrome-)
   - [For Firefox: ](#for-firefox-)
   - [Remember in firefox you add plugin in temporary mode, that's mean it's disappear after close browser, you must do it again, on next launch.](#remember-in-firefox-you-add-plugin-in-temporary-mode-thats-mean-its-disappear-after-close-browser-you-must-do-it-again-on-next-launch)
+- [Important attributes:](#important-attributes)
+- [Useless tags:](#useless-tags)
 
 
 ## Intro <a name="intro"></a>
@@ -76,3 +78,14 @@ This boilerplate is made for creating chrome extensions using React and Typescri
 4. Select - `manifest.json` from `dist` folder
 
 ### <i>Remember in firefox you add plugin in temporary mode, that's mean it's disappear after close browser, you must do it again, on next launch.</i>
+ 
+
+
+
+## Important attributes:
+
+alt, checked, for, form, href, id, label, name, onchange, onclick, placeholder, required, role, selected, title, type, value
+
+## Useless tags: 
+
+br, hr, meta, script, style, link, noscript, comment, iframe, path, rect, circle, ellipse, line, polyline, polygon, figure, figcaption, canvas, audio, video, source, track, map, area

@@ -16,8 +16,9 @@ function isInteractive(
     element.hasAttribute('onmousedown') ||
     element.hasAttribute('onmouseup') ||
     element.hasAttribute('onkeydown') ||
-    element.hasAttribute('onkeyup') ||
-    style.cursor === 'pointer'
+    element.hasAttribute('onkeyup') 
+    // ||
+    // style.cursor === 'pointer'
   );
 }
 
