@@ -1,7 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { useCallback } from "react";
-import { attachDebugger, detachDebugger } from "./utils/chromeDebugger";
 import { useRef } from "react";
+import React, { useEffect, useState } from "react";
 
 export const AppContext = React.createContext<{
   loding: boolean

@@ -25,7 +25,7 @@ async function clickAtPosition(
   y: number,
   clickCount = 1
 ): Promise<void> {
-  callRPC('ripple', [x, y]);
+  callRPC('RIPPLE', [x, y]);
 
   await sendCommand('Input.dispatchMouseEvent', tabId, {
     type: 'mousePressed',

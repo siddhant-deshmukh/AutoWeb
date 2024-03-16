@@ -73,7 +73,7 @@ function traverseDOM(node: Node, pageElements: HTMLElement[]) {
 export default function getAnnotatedDOM() {
   currentElements = [];
   const result = traverseDOM(document.documentElement, currentElements);
-  console.log(result.clonedDOM)
+  // console.log(result.clonedDOM)
   return (result.clonedDOM as HTMLElement).outerHTML;
 }
 
@@ -83,7 +83,7 @@ export function getUniqueElementSelectorId(id: number): string {
   // element may already have a unique id
 
   let uniqueId = element.getAttribute(TAXY_ELEMENT_SELECTOR);
-  console.log("getUniqueElementSelectorId", id, uniqueId)
+  console.log("getUniqueElementSelectorId", element, id, uniqueId)
   if (uniqueId) return uniqueId;
   uniqueId = Math.random().toString(36).substring(2, 10);
   element.setAttribute(TAXY_ELEMENT_SELECTOR, uniqueId);

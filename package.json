@@ -21,6 +21,7 @@
   },
   "type": "module",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.18.0",
     "construct-style-sheets-polyfill": "3.1.0",
     "lodash": "^4.17.21",
     "openai": "^4.28.4",
