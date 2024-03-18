@@ -59,9 +59,9 @@ export default function ExecutionController({ tabId, main_task, apiKey, setInfo,
 
         console.log("DOM", dom)
         // Get the Command by sending the DOM
-        break;
         const taskJson = await sendDomGetCommand(apiKey, { main_task, compact_dom: compact_dom, currentPageUrl: currentTab.url?.split("?")[0] }, taskExecutionRef.current.aboutPreviousTask)
-        
+        break;
+
         if (taskJson.err)
           exitLoop("Aborting, error while executing prompt");
         console.log("taskJSON", taskJson)
