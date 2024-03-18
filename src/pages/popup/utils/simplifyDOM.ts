@@ -19,22 +19,23 @@ export async function getSimplifiedDom() {
   //   interactiveElements
   // ) as HTMLElement;
 
-  const compressed_DOM_childs = compressDOM(dom.documentElement)
-  const compressed_DOM = document.createElement("div")
-  if (compressed_DOM_childs) {
-    compressed_DOM_childs.forEach((child) => compressed_DOM.appendChild(child));
-  }
+  // const compressed_DOM_childs = compressDOM(dom.documentElement)
+  // const compressed_DOM = document.createElement("div")
+  // if (compressed_DOM_childs) {
+  //   compressed_DOM_childs.forEach((child) => compressed_DOM.appendChild(child));
+  // }
+  // console.log("Simplified DOM", compressed_DOM)
+  // return compressed_DOM;
 
-  // const simplifiedDom2 = generateSimplifiedDom(
-  //   dom.documentElement,
-  //   interactiveElements
-  // ) as HTMLElement;
+  const simplifiedDom2 = generateSimplifiedDom(
+    dom.documentElement,
+    interactiveElements
+  ) as HTMLElement;
 
+  console.log("Simplified DOM 2", simplifiedDom2)
 
-  console.log("Simplified DOM", compressed_DOM)
-  // console.log("Simplified DOM 2", simplifiedDom2)
-
-  return compressed_DOM;
+  return simplifiedDom2;
+  
 }
 
 function generateSimplifiedDom(

@@ -10,7 +10,7 @@ export default function Home() {
   const { apiKey, loding, tabId, setCurrPage, setLoding } = useContext(AppContext)
 
   const [info, setInfo] = useState<any[]>([])
-  const [userPrompt, setUserPrompt] = useState<string>("")
+  const [mainTask, setMainTask] = useState<string>("")
   const [taskState, setTaskState] = useState<"" | "executing" | "terminated">("")
 
   useEffect(() => {
@@ -83,8 +83,8 @@ export default function Home() {
         <textarea
           id="message"
           rows={4}
-          value={userPrompt}
-          onChange={(e) => { setUserPrompt(e.target.value) }}
+          value={mainTask}
+          onChange={(e) => { setMainTask(e.target.value) }}
           className="block my-2.5 p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="What do you want your current page to do ....">
         </textarea>
         <button
@@ -135,7 +135,7 @@ export default function Home() {
             setInfo={setInfo}
             setTaskState={setTaskState}
             tabId={tabId}
-            user_prompt={userPrompt}
+            main_task={mainTask}
           />
         }
         {

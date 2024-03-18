@@ -4,149 +4,122 @@ import { CountTokens } from './countToken';
 
 export async function sendDomGetCommand(
   key: string,
-  { compact_dom, user_prompt, currentPageUrl }: {
+  { compact_dom, main_task, currentPageUrl }: {
     compact_dom: string,
-    user_prompt: string,
+    main_task: string,
     currentPageUrl: string
   },
   aboutPrevTasks: string[]
-): Promise<
-  { task: undefined, msg: string,       token_count: number, usage?: Anthropic.Usage,  err: false } |
-  { task: undefined, msg: string,       token_count?: number, usage?: Anthropic.Usage, err: true } |
-  { task: ITask,     msg: 'successful', token_count?: number, usage: Anthropic.Usage, err: false }> {
+): Promise<{ task?: ITask, msg: string, token_count?: number, usage?: Anthropic.Usage, err: any }> {
 
   try {
-    // const openai = new OpenAIApi(
-    //   new Configuration({
-    //     apiKey: key,
-    //   })
-    // );
-
     // const openai = new OpenAI({
     //   apiKey: key,
-    //   dangerouslyAllowBrowser: true
+    //   dangerouslyAllowBrowser: true,
     // });
 
     const claude = new Anthropic({
       apiKey: key,
     })
+    const assistant_prompt = "Imagine your self as browser automater. Give me a RFC8259 compliant valid json output inside <JSON></JSON> tags otherwise it will be invalid"
 
-    // So when I give you a COMMAND and the DOM of website you will tell me instuctions to perform on DOM to execute that COMMAND. You have to tell actions to do inside the DOM to achive this.
-    // The output should be a stringified json string that I can later parse easily. Message should be string only json. Dont add backticks please . The format of json should be
-    // For now only consider tagTypes of type "button", "a", "li", "div", "span".
-    // You will be be given a task to perform and the current state of the DOM. You will also be given previous actions that you have taken.
-    // And if to perform the task I have to do more than one command then that is fine.
+    //* Step 1 : (Haiku)  Getting summery of web page
 
-    // currently on the page "${currentPageUrl}"
-
-    // If you wanted to add some info that MAIN_TASK requires from current page like summerising page or getting some data you can add it in pageInfo array.
-    // pageInfo: [
-    //   {
-    //     ...{Can write in any valid json format whatever fields you like}
-    //   }
-    // ]
-    const prompt = `
-  
-  Goal is to complete the MAIN_TASK given. Have to do it in iteration.
-  At each iteration I will give you current webpage DOM with what thought of tasks you take previously. 
-  And you have to give me a single task at each iteration.
-
-  Based on this give me task at each iteration. the task that you will give me will contain parts though, command and commandType.
-
-  commandTypes: 'click' and 'typing' means click and typing operation to perform in DOM, 'back' and 'forward' means clicking navigation button in chrome i.e going on previous or next page, 'finish' means MAIN_TASK is done, 'scanning-result' means you scanned the dom and giving some insights like summerizing or giving details if user asked. 
-
-  Do not include any explanations, only provide a  RFC8259 compliant JSON response following this format within <JSON></JSON> tag without deviation. 
-  { 
-    task : {
-        thought: {A string explaining task, what it does? and reason why are you doing this?. I will send all this as previous actions which will help toward completing MAIN_TASK},
-        commandType: {either 'typing', 'click', 'back', 'forward', 'scanning-result'},
-        command: {
-          id: {id number of the selected element },
-          tag: {tag of the element like "button", "a"},
-          textToType: {in case of wanted to type something write the text here},
-          target: {if anchor tag then its target e.g "_blank"},
-          result: {in case you wanted to give result give it here in any valid json format}
-        }
+    const user_prompt_01_get_summery = `Will give you the DOM. 
+      Give output in following format. Try to use as less world as possible. Don't want output exceed 400 tokens.
+      {
+        "summery" : {what does this webpage shows or main purpose of web page},
+        "patterns": [Look for patterns that are repetitive. What these pattern represent],
+        "operations that can be done": [],
+        "total-nav-links": ,
+        "total-inputs": ,
+        "inputs": [{just labels} maximum 10],
+        "nav-links": [{just labels} maximum 15],
       }
-  }
-  one task at each iteration.
-  please note that in output it should be same HTML tag. I mean you can not give id and tagType of two different tags. Give one task and command at a time
+      
+      page URL: "${currentPageUrl}"
 
-  MAIN_TASK is "${user_prompt}"
+      DOM: "${JSON.stringify(compact_dom)}"
+      `
+    const output01 = await SendPromptToClaude({
+      claude,
+      version: 'claude-3-haiku-20240307',
+      assistant_prompt,
+      user_prompt: user_prompt_01_get_summery,
+      max_tokens: 500,
+      temperature: 0.2
+    })
+    console.log("-------- 1. Summerizing data complete", output01)
+    if (!output01.data) {
+      return { err: output01.err, msg: output01.msg, token_count: output01.token_count }
+    }
+    const summery = output01.data
 
-  current DOM "${compact_dom}"
+    //* Step 2 : (Sonnet) Getting next task of web page 
 
-  current page url "${currentPageUrl}"
+    //description_of_DOM_elements_needed: ""
+    // Don't be too specific like className, aria-label just give basic text elements that can be found in DOM. 
+    const get_dom_retrival_prompt_prompt = `
+    Giving you MAIN_TASK that has to be done in multiple tasks, history of tasks previously take, summery of the current web page
 
-  thoughts of previous actions you have take "${JSON.stringify(aboutPrevTasks)}"
+    Output the next posible task. And inclue keywords to look into DOM. Can give more than one possiblities. Only think about next immediate single step. this is about one task only.
+    {
+      possiblities: [{
+        potential_next_step: "",
+      }]
+    }
+    
+    MAIN_TASK: "${main_task}"
 
-  The JSON response:
-  `
+    Previously taken tasks: "${JSON.stringify(aboutPrevTasks)}"
+    
+    Current web page summery "${JSON.stringify(summery)}"
+    `
+    const output02 = await SendPromptToClaude({
+      claude,
+      version: 'claude-3-sonnet-20240229',
+      user_prompt: get_dom_retrival_prompt_prompt,
+      assistant_prompt,
+      max_tokens: 600,
+      temperature: 0.6,
+    })
+    console.log("-------- 2. Summerizing data complete", output02)
+    if (!output02.data) {
+      return { err: output02.err, msg: output02.msg, token_count: output02.token_count }
+    }
+    const retreval_data_info = output02.data
 
-    const token_count = CountTokens(prompt)
-    console.log(token_count, '\n\nprompt', prompt)
-    if (token_count > 20000) {
-      return { msg: 'exceeding token limit', token_count, usage: undefined, task: undefined, err: false }
+
+    //* Step 3 : (Haiku) Retriving DOM data
+    const get_retrived_DOM_prompt = `
+    You are supposed to retrieve some element from entire DOM.
+    Giving you entire dom and description of some elements that I want from that DOM. Only give the elements that match the description.
+    Output pattern:
+    {
+      retrived_elements: [
+        {DOM}
+      ]
     }
 
-    // const completion = await openai.chat.completions.create({
-    //   model: 'gpt-3.5-turbo-0125', // 'mistralai/Mixtral-8x7B-Instruct-v0.1', //  'gpt-4-0125-preview',
-    //   messages: [
-    //     { role: 'system', "content": "Imagine yourself a chrome browser automater" },
-    //     { role: 'user', content: prompt },
-    //   ],
-    //   max_tokens: 1000,
-    //   temperature: 0,
-    // });
+    description of desired elements: ${JSON.stringify(retreval_data_info)}
 
-    const completion = await claude.messages.create({
-      model: 'claude-3-haiku-20240307', // 'mistralai/Mixtral-8x7B-Instruct-v0.1', //  'gpt-4-0125-preview',
-      messages: [
-        { role: 'user', content: prompt },
-        { role: 'assistant', "content": "Imagine yourself a chrome browser automater" },
-      ],
-      max_tokens: 1000,
-      temperature: 0,
-    });
-
-    // console.log("Completions", completion, completion.usage)
-
-    if (completion.content.length < 1 || completion.content[0].type !== "text") {
-      throw "Got invalid format"
+    entire DOM:"${compact_dom}"
+    `
+    const output03 = await SendPromptToClaude({
+      claude,
+      version: 'claude-3-haiku-20240307',
+      user_prompt: get_retrived_DOM_prompt,
+      assistant_prompt,
+      max_tokens: 700,
+      temperature: 0.3,
+    })
+    console.log("-------- 3. Retriving DOM complete", output03)
+    if (!output03.data) {
+      return { err: output03.err, msg: output03.msg, token_count: output03.token_count }
     }
-    var pattern = /<JSON>(.*?)<\/JSON>/s;
-    // Use match method to find all matches of the pattern in the text
-    var matches = completion.content[0].text.match(pattern);
-    // If matches are found, extract the commands
-    // console.log("matches", matches)
-    if (matches && matches.length > 0) {
-      // Remove <command> and </command> tags from each match
-      const taskJSONstring = matches.map(function (match) {
-        return match.replace(/<\/?JSON>/g, '');
-      });
-      // console.log(taskJSONstring)
-      const tasksJSON = JSON.parse(taskJSONstring[0]) as { task: ITask }
+    const retrived_dom = output03.data
 
-      // console.log("Final", tasksJSON, { tasks: tasksJSON.tasks, msg: 'successful', token_count, usage: completion.usage })
-      return { task: tasksJSON.task, msg: 'successful', token_count, usage: completion.usage, err: false }
-    } else {
-      throw 'Invalid format';
-    }
-
-    let taskstring = completion
-    // let taskstring = completion.choices[0].message?.content
-
-    // taskstring = taskstring.replace(/```/g, "")
-    // taskstring = taskstring.replace('json', "")
-
-    // // const taskList = extractCommands(taskstring).map((task) => {
-    // //   return extractAttributes(task)usage: completion.usage
-    // // })
-    // console.log("CHAT_GPT", completion, taskstring)
-    // const task = JSON.parse(taskstring)
-    // console.log("tasks", task)
-
-    // return { tasks: task.tasks, msg: 'successful', token_count, usage: completion.usage }
+    
   } catch (err) {
     console.error("While sending Prompt", err)
     return { task: undefined, msg: 'failed', err: true }
@@ -154,35 +127,91 @@ export async function sendDomGetCommand(
 }
 
 
-export function extractAttributes(commandString: string) {
-  // Define a pattern to match the id and tagType attributes
-  var pattern = /id=(\d+)\s+tagType={"(.*?)"}/;
-  // Use match method to find the match of the pattern in the string
-  var match = commandString.match(pattern);
-  // If a match is found, extract id and tagType
-  if (match) {
-    var id = parseInt(match[1]); // Parse id as integer
-    var tagType = match[2]; // Extract tagType
-    return { id: id, tagType: tagType }; // Construct and return the object
-  } else {
-    return null; // Return null if no match is found
+
+export async function SendPromptToClaude({ claude, version, user_prompt, assistant_prompt, max_tokens = 500, temperature = 0.2 }: {
+  version: 'claude-3-sonnet-20240229' | 'claude-3-haiku-20240307',
+  claude: Anthropic,
+  user_prompt: string,
+  assistant_prompt: string,
+  max_tokens?: number,
+  temperature?: number
+}): Promise<{ data?: any, msg: string, token_count?: number, usage?: Anthropic.Usage, err?: any }> {
+  try {
+    const token_count = CountTokens(user_prompt)
+    // console.log(token_count, '\n\nprompt', prompt)
+    if (token_count > 20000) {
+      return { msg: 'exceeding token limit', token_count }
+    }
+    console.log({ user_prompt, assistant_prompt })
+    const completion = await claude.messages.create({
+      model: version,
+      messages: [
+        { role: 'user', content: user_prompt },
+        { role: 'assistant', "content": assistant_prompt },
+      ],
+      max_tokens,
+      temperature,
+    });
+    console.log("Completion", completion)
+    if (completion.content.length < 1 || completion.content[0].type !== "text") {
+      throw "Got invalid format"
+    }
+    var pattern = /<JSON>(.*?)<\/JSON>/s;
+    var matches = completion.content[0].text.match(pattern);
+    if (matches && matches.length > 0) {
+
+      const dataJSONstring = matches.map(function (match) {
+        return match.replace(/<\/?JSON>/g, '');
+      });
+      const data = JSON.parse(dataJSONstring[0]) //as { task: ITask }
+
+      return { data, msg: 'successful', token_count, usage: completion.usage }
+    } else {
+      return { msg: 'failed to extract data', token_count, usage: completion.usage }
+    }
+  } catch (err) {
+    console.error("While sending prompt to claude", err, { user_prompt, version })
+    if (err instanceof Anthropic.APIError) {
+      return { msg: JSON.stringify(err.cause), err }
+    }
+    return { msg: "Prompt failed", err }
   }
 }
 
-export function extractCommands(text: string) {
-  // Define the pattern to match commands inside <command></command> tags
-  var pattern = /<command>(.*?)<\/command>/g;
-  // Use match method to find all matches of the pattern in the text
-  var matches = text.match(pattern);
-  // If matches are found, extract the commands
-  if (matches) {
-    // Remove <command> and </command> tags from each match
-    return matches.map(function (match) {
-      return match.replace(/<\/?command>/g, '');
-    });
-  } else {
-    return [];
+
+
+
+export async function SendPromptToGPT({ openai, version, user_prompt, system_prompt, max_tokens = 1000, temperature = 0.2 }: {
+  version: 'gpt-4-0125-preview' | 'gpt-3.5-turbo-0125',
+  openai: OpenAI,
+  user_prompt: string,
+  system_prompt: string,
+  max_tokens?: number,
+  temperature?: number
+}) {
+  const token_count = CountTokens(user_prompt)
+  // console.log(token_count, '\n\nprompt', user_prompt)
+  if (token_count > 20000) {
+    return { task: undefined, msg: 'exceeding token limit', token_count, usage: undefined, err: false }
   }
+
+  const completion = await openai.chat.completions.create({
+    model: version,
+    messages: [
+      { role: 'system', "content": system_prompt },
+      { role: 'user', content: user_prompt },
+    ],
+    max_tokens,
+    temperature,
+  })
+
+  let taskstring = completion.choices[0].message?.content
+
+  taskstring = taskstring.replace(/```/g, "")
+  taskstring = taskstring.replace('json', "")
+
+  const task = JSON.parse(taskstring)
+  return { tasks: task.tasks, msg: 'successful', token_count, usage: completion.usage }
 }
 
 export interface ITask {

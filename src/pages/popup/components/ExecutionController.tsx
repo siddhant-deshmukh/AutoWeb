@@ -7,10 +7,10 @@ import { sendDomGetCommand } from '../utils/sendDomGetCommands'
 import { attachDebugger, detachDebugger } from '../utils/chromeDebugger'
 import { domClick, getObjectId, setValue } from '../utils/handleingDOMOperations'
 
-export default function ExecutionController({ tabId, user_prompt, apiKey, setInfo, setTaskState }: {
+export default function ExecutionController({ tabId, main_task, apiKey, setInfo, setTaskState }: {
   tabId: number
   apiKey: string
-  user_prompt: string
+  main_task: string
   setInfo: React.Dispatch<React.SetStateAction<any[]>>
   setTaskState: React.Dispatch<React.SetStateAction<"" | "executing" | "terminated">>
 }) {
@@ -32,10 +32,15 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setInf
     iterationNumber: 0
   })
 
+  function exitLoop(msg: string) {
+    setTasksList((prev) => {
+      return prev.slice().concat([msg])
+    })
+    firstTime.current = false
+    detachDebugger(tabId)
+  }
   const executePrompt = useCallback(async () => {
     try {
-      console.log("Executing prompt")
-
       await sleep(1000)
 
       await attachDebugger(tabId)
@@ -49,32 +54,25 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setInf
 
         const dom = await getSimplifiedDom()
         const compact_dom = dom.outerHTML
-        // const compact_dom = templatize(dom.outerHTML)
-        // const compact_dom = compressDom(dom)
+
         if (!taskExecutionRef.current.isTaskActive) break;
 
-        // console.log("compact_dom", compact_dom)
-        // break;
-
-        const taskJson = await sendDomGetCommand(apiKey, { user_prompt, compact_dom: compact_dom, currentPageUrl: currentTab.url?.split("?")[0] }, taskExecutionRef.current.aboutPreviousTask)
-        if (taskJson.err) {
-          setTasksList((prev) => {
-            return prev.slice().concat(["Aborting, error while executing prompt"])
-          })
-          firstTime.current = false
-          detachDebugger(tabId)
-          break;
-        }
+        console.log("DOM", dom)
+        // Get the Command by sending the DOM
+        break;
+        const taskJson = await sendDomGetCommand(apiKey, { main_task, compact_dom: compact_dom, currentPageUrl: currentTab.url?.split("?")[0] }, taskExecutionRef.current.aboutPreviousTask)
+        
+        if (taskJson.err)
+          exitLoop("Aborting, error while executing prompt");
         console.log("taskJSON", taskJson)
-        // break
 
+        // If token count limit exceed
         if (!taskExecutionRef.current.isTaskActive) break;
         if (taskJson.token_count > 20000 || taskJson.usage === undefined) {
-          setTasksList((prev) => {
-            return prev.slice().concat(["Aborting, token limit exceed"])
-          })
-          break;
+          exitLoop("Token limit exceed")
         }
+
+        // Setting the usage
         setUsage((prev) => {
           if (taskJson.usage) {
             return {
@@ -85,18 +83,11 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setInf
           }
           return { ...prev }
         })
-        // console.log(taskJson.tasks, taskJson["tasks"], Array.isArray(taskJson["tasks"]), taskJson)
 
-        // if (taskJson && taskJson.info && Array.isArray(taskJson.info) && taskJson.info.length > 0) {
-        //   setInfo((prev) => {
-        //     return prev.slice().concat(taskJson.info)
-        //   })
-        // }
 
         if (taskJson && taskJson.task) {
           const { command, commandType, thought } = taskJson.task
-          // console.log(i, "\tcurrent tasks", tasks)
-          // for (const { thought, commandType, command } of tasks) {
+
           try {
             if (!taskExecutionRef.current.isTaskActive) break;
 
@@ -108,32 +99,23 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setInf
               await chrome.tabs.goForward(tabId)
             } else if (commandType === 'finish') {
               console.log("----------------------      finished  ------------------------------------------")
-              // taskExecutionRef.current = {
-              //   ...taskExecutionRef.current,
-              //   isTaskActive: false
-              // }
             } else if (commandType === 'scanning-result' && command.result) {
               console.log("-------     Result --:", command.result)
               setInfo((prev) => {
                 return prev.slice().concat(JSON.stringify(command.result))
               })
             } else {
-              // const command = commands[i]
               console.log(thought, "The command", command)
               const id = parseInt(command.id as string)
               const objectId = await getObjectId(id, tabId);
               console.log("Unique id", objectId, command)
 
-
-              if (!objectId) continue;
-
-              // const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-
-              // const tabId = tabs[0].id;
-              // return activeTab.id
-              // const code = `document.getElementById('${objectId}').click();`;
-              // console.log("code", code, "executing")
-              // chrome.tabs.executeScript(activeTab.id, { code: code });
+              if (!objectId) {
+                setTasksList((prev) => {
+                  return prev.slice().concat(["Didn't find the object id for though:" + thought])
+                })
+                continue;
+              };
 
               if (!taskExecutionRef.current.isTaskActive) break;
 
@@ -144,22 +126,10 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setInf
                 } else {
                   await domClick(tabId, objectId)
                 }
-                // await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
-                //   objectId, // The objectId of the DOM node
-                //   functionDeclaration: "function() { this.click(); }", // Define a function to call click() on the node
-                //   returnByValue: false
-                // })
+
               } else if (commandType === 'typing' && typeof command.textToType === 'string') {
                 await setValue(tabId, objectId, command.textToType)
-                // console.log(`function() { this.value = '${command.textToType}'; }`)
-                // await typeText(tabId, command.textToType as string)
-                // const res = await chrome.debugger.sendCommand({ tabId }, "Runtime.callFunctionOn", {
-                //   objectId, // The objectId of the DOM node
-                //   functionDeclaration: `function() { this.value = '${command.textToType}'; }`, // Define a function to call click() on the node
-                //   returnByValue: false
-                // })
-                //@ts-ignore
-                // console.log("Typing ---------- ", res, res?.exceptionDetails)
+
               } else {
                 console.log("!!!!!!!!!!!!!!!!!!!!Something is wrong with this command!!!!!!!1111", command, thought, commandType)
               }
@@ -177,22 +147,16 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setInf
               setTasksList((prev) => {
                 return prev.slice().concat([thought, "sleeping for 2 sec"])
               })
-              await sleep(3000)
+              await sleep(2000)
             } else {
               console.log("Sleeping for 2 sec")
               setTasksList((prev) => {
-                return prev.slice().concat([thought, "sleeping for 1 sec"])
+                return prev.slice().concat([thought, "sleeping for 2 sec"])
               })
-              await sleep(3000)
+              await sleep(2000)
             }
-
             console.log("task", i, "  done", thought)
 
-            // .catch((err) => {
-            //   console.error("While runing debugger", err)
-            // }).finally(() => {
-            //   detachDebugger(tabId)
-            // })
           } catch (err) {
             console.error("in command", command, thought, err)
             setTasksList((prev) => {
@@ -218,7 +182,7 @@ export default function ExecutionController({ tabId, user_prompt, apiKey, setInf
       console.error("While executing commads", err)
     }
 
-  }, [tabId, user_prompt, apiKey, setTaskState])
+  }, [tabId, main_task, apiKey, setTaskState])
 
   useEffect(() => {
     if (firstTime) {
@@ -288,14 +252,14 @@ interface ITaskExecutionState {
 // executePrompt(userPrompt, apiKey, tabId)
 
 
-// async function executeAction(user_prompt: string, apiKey: string, tabId: number) {
+// async function executeAction(main_task: string, apiKey: string, tabId: number) {
 //   try {
 //     console.log("Executing prompt")
 
 //     await attachDebugger(tabId)
 
 //     const compact_dom = await getSimplifiedDom()
-//     const taskJson = await sendDomGetCommand(apiKey, { user_prompt, compact_dom: compact_dom.outerHTML }, [])
+//     const taskJson = await sendDomGetCommand(apiKey, { main_task, compact_dom: compact_dom.outerHTML }, [])
 
 //     console.log(taskJson.tasks, taskJson["tasks"], Array.isArray(taskJson["tasks"]), taskJson)
 
