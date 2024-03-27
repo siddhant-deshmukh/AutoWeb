@@ -7,9 +7,9 @@ import { sendDomGetCommand } from '../utils/sendDomGetCommands'
 import { attachDebugger, detachDebugger } from '../utils/chromeDebugger'
 import { domClick, getObjectId, setValue } from '../utils/handleingDOMOperations'
 
-export default function ExecutionController({ tabId, main_task, apiKey, setInfo, setTaskState }: {
+export default function ExecutionController({ tabId, main_task, apiKeys, setInfo, setTaskState }: {
   tabId: number
-  apiKey: string
+  apiKeys: { openai: string, claude: string }
   main_task: string
   setInfo: React.Dispatch<React.SetStateAction<any[]>>
   setTaskState: React.Dispatch<React.SetStateAction<"" | "executing" | "terminated">>
@@ -33,12 +33,17 @@ export default function ExecutionController({ tabId, main_task, apiKey, setInfo,
   })
 
   function exitLoop(msg: string) {
+    taskExecutionRef.current = {
+      ...taskExecutionRef.current,
+      isTaskActive: false
+    }
     setTasksList((prev) => {
       return prev.slice().concat([msg])
     })
     firstTime.current = false
     detachDebugger(tabId)
   }
+
   const executePrompt = useCallback(async () => {
     try {
       await sleep(1000)
@@ -59,18 +64,25 @@ export default function ExecutionController({ tabId, main_task, apiKey, setInfo,
 
         console.log("DOM", dom)
         // Get the Command by sending the DOM
-        const taskJson = await sendDomGetCommand(apiKey, { main_task, compact_dom: compact_dom, currentPageUrl: currentTab.url?.split("?")[0] }, taskExecutionRef.current.aboutPreviousTask)
         break;
+        const taskJson = await sendDomGetCommand(apiKeys, { main_task, compact_dom: compact_dom, currentPageUrl: currentTab.url?.split("?")[0] }, taskExecutionRef.current.aboutPreviousTask)
+        // break;
 
-        if (taskJson.err)
+        if (!taskJson || taskJson.err){
+          taskExecutionRef.current = {
+            ...taskExecutionRef.current,
+            isTaskActive: false
+          }
           exitLoop("Aborting, error while executing prompt");
+          break;
+        }
         console.log("taskJSON", taskJson)
 
         // If token count limit exceed
         if (!taskExecutionRef.current.isTaskActive) break;
-        if (taskJson.token_count > 20000 || taskJson.usage === undefined) {
-          exitLoop("Token limit exceed")
-        }
+        // if (taskJson.token_count > 20000 || taskJson.usage === undefined) {
+        //   exitLoop("Token limit exceed")
+        // }
 
         // Setting the usage
         setUsage((prev) => {
@@ -182,7 +194,7 @@ export default function ExecutionController({ tabId, main_task, apiKey, setInfo,
       console.error("While executing commads", err)
     }
 
-  }, [tabId, main_task, apiKey, setTaskState])
+  }, [tabId, main_task, apiKeys, setTaskState])
 
   useEffect(() => {
     if (firstTime) {
@@ -213,7 +225,7 @@ export default function ExecutionController({ tabId, main_task, apiKey, setInfo,
               isTaskActive: false
             }
             setterminateStatus(true)
-            sleep(10000).finally(() => {
+            sleep(2000).finally(() => {
               setTaskState('terminated')
             })
           }}

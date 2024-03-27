@@ -13,7 +13,7 @@ export async function getSimplifiedDom() {
 
   const interactiveElements: HTMLElement[] = [];
 
-  console.log("before simplified", dom.documentElement)
+  // console.log("before simplified", dom.documentElement)
   // const simplifiedDom = generateSimplifiedDom(
   //   dom.documentElement,
   //   interactiveElements
@@ -32,7 +32,7 @@ export async function getSimplifiedDom() {
     interactiveElements
   ) as HTMLElement;
 
-  console.log("Simplified DOM 2", simplifiedDom2)
+  // console.log("Simplified DOM 2", simplifiedDom2)
 
   return simplifiedDom2;
   

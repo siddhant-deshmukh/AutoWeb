@@ -3,11 +3,12 @@ import { useContext, useEffect } from 'react'
 
 import { AppContext } from '../AppContext'
 import ExecutionController from './ExecutionController'
+import Setting from './Setting'
 
 
 export default function Home() {
 
-  const { apiKey, loding, tabId, setCurrPage, setLoding } = useContext(AppContext)
+  const { apiKeys, loding, tabId, setCurrPage, setLoding } = useContext(AppContext)
 
   const [info, setInfo] = useState<any[]>([])
   const [mainTask, setMainTask] = useState<string>("")
@@ -16,7 +17,9 @@ export default function Home() {
   useEffect(() => {
     if (chrome && chrome.runtime) {
       chrome.runtime.sendMessage(
-        { action: "GET_STORAGE_VALUE", key: "open-key" })
+        { action: "GET_STORAGE_VALUE", key: "openai" });
+      chrome.runtime.sendMessage(
+        { action: "GET_STORAGE_VALUE", key: "claude" });
     }
     console.log("chrome", chrome)
     setLoding(false)
@@ -35,10 +38,10 @@ export default function Home() {
       </div>
     )
   }
-  if (!apiKey) {
+  if (!apiKeys.claude || !apiKeys.openai) {
     return (
       <div>
-        <h1 className='text-lg mb-3'>No API key found</h1>
+        {/* <h1 className='text-lg mb-3'>No API key found</h1>
         <button
           type="button"
           onClick={() => {
@@ -46,7 +49,8 @@ export default function Home() {
           }}
           className="focus:outline-none text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800">
           Go to settings to add ApiKey
-        </button>
+        </button> */}
+        <Setting />
       </div>
     )
   }
@@ -131,7 +135,7 @@ export default function Home() {
         {
           taskState === "executing" &&
           <ExecutionController
-            apiKey={apiKey}
+            apiKeys={apiKeys}
             setInfo={setInfo}
             setTaskState={setTaskState}
             tabId={tabId}
@@ -139,10 +143,10 @@ export default function Home() {
           />
         }
         {
-          taskState != "executing" && info.length > 0 && 
+          taskState != "executing" && info.length > 0 &&
           <ul>
             {
-              info.map((str)=>{
+              info.map((str) => {
                 return <li className='p-2 border' >{JSON.stringify(str)}</li>
               })
             }

@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { CountTokens } from './countToken';
 
 export async function sendDomGetCommand(
-  key: string,
+  keys: { openai: string, claude: string },
   { compact_dom, main_task, currentPageUrl }: {
     compact_dom: string,
     main_task: string,
@@ -13,13 +13,13 @@ export async function sendDomGetCommand(
 ): Promise<{ task?: ITask, msg: string, token_count?: number, usage?: Anthropic.Usage, err: any }> {
 
   try {
-    // const openai = new OpenAI({
-    //   apiKey: key,
-    //   dangerouslyAllowBrowser: true,
-    // });
+    const openai = new OpenAI({
+      apiKey: keys.openai,
+      dangerouslyAllowBrowser: true,
+    });
 
     const claude = new Anthropic({
-      apiKey: key,
+      apiKey: keys.claude,
     })
     const assistant_prompt = "Imagine your self as browser automater. Give me a RFC8259 compliant valid json output inside <JSON></JSON> tags otherwise it will be invalid"
 
@@ -55,7 +55,7 @@ export async function sendDomGetCommand(
       claude,
       version: 'claude-3-haiku-20240307',
       assistant_prompt: 'You are a webpage DOM pattern identifier. Give me a RFC8259 compliant valid json output inside <JSON></JSON> tags otherwise it will be invalid.',
-      user_prompt: user_prompt_01_get_summery,
+      user_prompt: JSON.stringify(user_prompt_01_get_summery),
       max_tokens: 600,
       temperature: 0.4
     })
@@ -66,31 +66,42 @@ export async function sendDomGetCommand(
     const summery = output01.data
 
     //* Step 2 : (Sonnet) Getting next task of web page 
-
-    //description_of_DOM_elements_needed: ""
-    // Don't be too specific like className, aria-label just give basic text elements that can be found in DOM. 
+    // Remember that what you are looking for might not be here and might have to some thing like getting nav-links, searching and getting result inorder to move ahead.
     const get_dom_retrival_prompt_prompt = `
     Giving you MAIN_TASK that has to be done in multiple tasks, history of tasks previously taken, summery of the current web page.
 
-    Output the next potential task. And inclue keywords to look into DOM. Can give more than one potential_task. Only think about next immediate single step. this is about one task only. 
-    Remember that what you are looking for might not be here and might have to some thing like getting nav-links, searching and getting result inorder to move ahead.
+    Don't repeat the previously taken task. Output the next potential tasks. And inclue keywords to look into DOM. Can give more than one potential_tasks. Only think about next immediate step to achieve MAIN_TASK. 
+    Keep in mind first might have to do some search, click dropdown, get navigation links for achieving main task.
+    If unsure about existance of element then try another potential task.
 
-    { potential_task: [{ potential_next_step: "", to_do_what_task: "", keywords: [] }] }
+    Output the following JSON:
+    { potential_tasks: [{ potential_next_task: "", to_do_what_task: "", keywords: [] }] }
 
+    Given:
     MAIN_TASK: "${main_task}"
 
     Previously taken tasks: "${JSON.stringify(aboutPrevTasks)}"
     
+    current page URL: "${currentPageUrl}"
+
     page summery "${JSON.stringify(summery)}"
     `
-    const output02 = await SendPromptToClaude({
-      claude,
-      version: 'claude-3-sonnet-20240229',
-      user_prompt: get_dom_retrival_prompt_prompt,
-      assistant_prompt,
-      max_tokens: 600,
-      temperature: 0.6,
-    })
+    // const output02 = await SendPromptToClaude({
+    //   claude,
+    //   version: 'claude-3-sonnet-20240229',
+    //   user_prompt: JSON.stringify(get_dom_retrival_prompt_prompt),
+    //   assistant_prompt,
+    //   max_tokens: 600,
+    //   temperature: 0.5,
+    // })
+    const output02 = await SendPromptToGPT({
+        openai,
+        version: 'gpt-4-0125-preview',
+        user_prompt: JSON.stringify(get_dom_retrival_prompt_prompt),
+        system_prompt: assistant_prompt,
+        max_tokens: 600,
+        temperature: 0.5,
+      })
     console.log("-------- 2. Getting task", output02)
     if (!output02.data) {
       return { err: output02.err, msg: output02.msg, token_count: output02.token_count }
@@ -99,25 +110,54 @@ export async function sendDomGetCommand(
 
 
     //* Step 3 : (Haiku) Retriving DOM data
+    // "potential_next_task": "",
+    // const get_retrived_DOM_prompt = `
+    // Output: 
+    // [{
+    //   "DOM_element_needed":""
+    // }]
+    // Dont give DOM element that do not exist.
+    // Give seperate DOM for each potential_task. In case of search give possible form and submit button. If don't found any DOM related to next potential step then return empty string.
+
+    // potential_task: ${JSON.stringify(retreval_data_info)}
+
+    // entire DOM:"${compact_dom}"
+    // `
+    // const output03 = await SendPromptToClaude({
+    //   claude,
+    //   version: 'claude-3-haiku-20240307',
+    //   user_prompt: JSON.stringify(get_retrived_DOM_prompt),
+    //   assistant_prompt: "Imagine your self as DOM retrieval which will give me small portion of DOM needed to perform potential tasks. Give me a valid json output inside <JSON></JSON> tags otherwise it will be invalid",
+    //   max_tokens: 700,
+    //   temperature: 0, //0.8
+    // })
+    // console.log("-------- 3. Retriving DOM complete", output03)
+    // if (!output03.data) {
+    //   return { err: output03.err, msg: output03.msg, token_count: output03.token_count }
+    // }
+    // const retrived_dom = output03.data
+
+    //* Step 3 : (GPT 3.5) Retriving DOM data
+    // "potential_next_task": "",
     const get_retrived_DOM_prompt = `
     Output: 
     [{
-      "potential_next_step": "",
       "DOM_element_needed":""
     }]
-    Give seperate DOM for each potential_task. In case of search give possible form and submit button.
+    Dont give DOM element that do not exist.
+    Give seperate DOM for each potential_task. In case of search give possible form and submit button. If don't found any DOM related to next potential step then return empty string.
 
-    potential_task: : ${JSON.stringify(retreval_data_info)}
+    potential_task: ${JSON.stringify(retreval_data_info)}
 
     entire DOM:"${compact_dom}"
     `
-    const output03 = await SendPromptToClaude({
-      claude,
-      version: 'claude-3-haiku-20240307',
-      user_prompt: get_retrived_DOM_prompt,
-      assistant_prompt: "Imagine your self as DOM retrieval which will give me small portion of DOM needed to perform potential tasks. Give me a valid json output inside <JSON></JSON> tags otherwise it will be invalid",
+    const output03 = await SendPromptToGPT({
+      openai,
+      version: 'gpt-3.5-turbo-0125',
+      user_prompt: JSON.stringify(get_retrived_DOM_prompt),
+      system_prompt: "Imagine your self as DOM retrieval which will give me small portion of DOM needed to perform potential tasks. Give me a valid json output inside <JSON></JSON> tags otherwise it will be invalid",
       max_tokens: 700,
-      temperature: 0.8,
+      temperature: 0.4, //0.8
     })
     console.log("-------- 3. Retriving DOM complete", output03)
     if (!output03.data) {
@@ -125,12 +165,15 @@ export async function sendDomGetCommand(
     }
     const retrived_dom = output03.data
 
+
     //* Step 4 : (Sonnet) Final getting commands
     const get_commands_prompt = `
     Giving you MAIN_TASK that has to be done in multiple tasks, history of tasks previously taken, a short version of original DOM called retrived_dom.
 
     Give me a single task at each iteration.
     Choose any element from the retrived_dom and explain what to do with it in following format.
+    Check previous actions taken and don't repeat the task again and again.
+
     Output fields: 
     1. thought: A string explaining what command does? Its role towards achieving main task
     2. command : {
@@ -172,12 +215,12 @@ export async function sendDomGetCommand(
 
     current page url "${currentPageUrl}"
 
-    thoughts of previous actions taken "${JSON.stringify(aboutPrevTasks)}"
+    previous actions taken "${JSON.stringify(aboutPrevTasks)}"
     `
     const output04 = await SendPromptToClaude({
       claude,
       version: 'claude-3-sonnet-20240229',
-      user_prompt: get_commands_prompt,
+      user_prompt: JSON.stringify(get_commands_prompt),
       assistant_prompt,
       max_tokens: 500,
       temperature: 0.4,
@@ -187,7 +230,7 @@ export async function sendDomGetCommand(
       return { err: output04.err, msg: output04.msg, token_count: output04.token_count }
     }
     const final_commands = output04.data
-
+    return final_commands
   } catch (err) {
     console.error("While sending Prompt", err)
     return { task: undefined, msg: 'failed', err: true }
@@ -237,8 +280,8 @@ export async function SendPromptToClaude({ claude, version, user_prompt, assista
       } catch (err) {
         console.error("Failed in JSON parsing")
         return { data: dataJSONstring[0], msg: 'successful', token_count, usage: completion.usage }
-      } 
-       
+      }
+
     } else {
       return { msg: 'failed to extract data', token_count, usage: completion.usage }
     }
@@ -262,29 +305,57 @@ export async function SendPromptToGPT({ openai, version, user_prompt, system_pro
   max_tokens?: number,
   temperature?: number
 }) {
-  const token_count = CountTokens(user_prompt)
-  // console.log(token_count, '\n\nprompt', user_prompt)
-  if (token_count > 20000) {
-    return { task: undefined, msg: 'exceeding token limit', token_count, usage: undefined, err: false }
+  try {
+    console.log({ user_prompt, system_prompt })
+
+    const token_count = CountTokens(user_prompt)
+    // console.log(token_count, '\n\nprompt', user_prompt)
+    if (token_count > 20000) {
+      return { task: undefined, msg: 'exceeding token limit', token_count, usage: undefined, err: false }
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: version,
+      messages: [
+        { role: 'system', "content": system_prompt },
+        { role: 'user', content: user_prompt },
+      ],
+      max_tokens,
+      temperature,
+    })
+
+    // let taskstring = completion.choices[0].message?.content
+    console.log(" completion", completion)
+    var pattern = /<JSON>(.*?)<\/JSON>/s;
+    var matches = completion.choices[0].message.content.match(pattern);
+    if (matches && matches.length > 0) {
+
+      const dataJSONstring = matches.map(function (match) {
+        return match.replace(/<\/?JSON>/g, '');
+      });
+      try {
+        const data = JSON.parse(dataJSONstring[0]) //as { task: ITask }
+        return { data, msg: 'successful', token_count, usage: completion.usage }
+      } catch (err) {
+        console.error("Failed in JSON parsing")
+        return { data: dataJSONstring[0], msg: 'successful', token_count, usage: completion.usage }
+      }
+
+    } else {
+      return { msg: 'failed to extract data', token_count, usage: completion.usage }
+    }
+  } catch (err) {
+    console.error("While sending prompt to openai gpt", err, { user_prompt, version })
+    if (err instanceof OpenAI.APIError) {
+      return { msg: JSON.stringify(err.cause), err }
+    }
+    return { msg: "Prompt failed", err }
   }
+  // taskstring = taskstring.replace(/```/g, "")
+  // taskstring = taskstring.replace('json', "")
 
-  const completion = await openai.chat.completions.create({
-    model: version,
-    messages: [
-      { role: 'system', "content": system_prompt },
-      { role: 'user', content: user_prompt },
-    ],
-    max_tokens,
-    temperature,
-  })
-
-  let taskstring = completion.choices[0].message?.content
-
-  taskstring = taskstring.replace(/```/g, "")
-  taskstring = taskstring.replace('json', "")
-
-  const task = JSON.parse(taskstring)
-  return { tasks: task.tasks, msg: 'successful', token_count, usage: completion.usage }
+  // const task = JSON.parse(taskstring)
+  // return { tasks: task.tasks, msg: 'successful', token_count, usage: completion.usage }
 }
 
 export interface ITask {
