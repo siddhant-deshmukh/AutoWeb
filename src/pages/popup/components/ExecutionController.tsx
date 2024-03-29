@@ -64,11 +64,12 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
 
         console.log("DOM", dom)
         // Get the Command by sending the DOM
-        break;
+        // break;
         const taskJson = await sendDomGetCommand(apiKeys, { main_task, compact_dom: compact_dom, currentPageUrl: currentTab.url?.split("?")[0] }, taskExecutionRef.current.aboutPreviousTask)
+        console.log(taskJson)
         // break;
 
-        if (!taskJson || taskJson.err){
+        if (!taskJson || !Array.isArray(taskJson?.task.actions) || taskJson.err){
           taskExecutionRef.current = {
             ...taskExecutionRef.current,
             isTaskActive: false
@@ -96,89 +97,92 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
           return { ...prev }
         })
 
-
-        if (taskJson && taskJson.task) {
-          const { command, commandType, thought } = taskJson.task
-
-          try {
-            if (!taskExecutionRef.current.isTaskActive) break;
-
-            if (commandType === 'back') {
-              console.log("Going back")
-              await chrome.tabs.goBack(tabId)
-            } else if (commandType === 'forward') {
-              console.log("Going forward")
-              await chrome.tabs.goForward(tabId)
-            } else if (commandType === 'finish') {
-              console.log("----------------------      finished  ------------------------------------------")
-            } else if (commandType === 'scanning-result' && command.result) {
-              console.log("-------     Result --:", command.result)
-              setInfo((prev) => {
-                return prev.slice().concat(JSON.stringify(command.result))
-              })
-            } else {
-              console.log(thought, "The command", command)
-              const id = parseInt(command.id as string)
-              const objectId = await getObjectId(id, tabId);
-              console.log("Unique id", objectId, command)
-
-              if (!objectId) {
-                setTasksList((prev) => {
-                  return prev.slice().concat(["Didn't find the object id for though:" + thought])
-                })
-                continue;
-              };
-
+        for(let i=0; i< taskJson.task.actions.length; i++){
+          
+          if (taskJson && taskJson.task) {
+            const { command, actionType, thought } = taskJson.task.actions[i]
+  
+            try {
               if (!taskExecutionRef.current.isTaskActive) break;
-
-              if (commandType === 'click') {
-                console.log("Going to click")
-                if (command.target === "_blank") {
-                  console.error("Command target _blank")
-                } else {
-                  await domClick(tabId, objectId)
-                }
-
-              } else if (commandType === 'typing' && typeof command.textToType === 'string') {
-                await setValue(tabId, objectId, command.textToType)
-
+  
+              if (actionType === 'back') {
+                console.log("Going back")
+                await chrome.tabs.goBack(tabId)
+              } else if (actionType === 'forward') {
+                console.log("Going forward")
+                await chrome.tabs.goForward(tabId)
+              } else if (actionType === 'finish') {
+                console.log("----------------------      finished  ------------------------------------------")
+              } else if (actionType === 'scanning-dom' && command.result) {
+                console.log("-------     Result --:", command.result)
+                setInfo((prev) => {
+                  return prev.slice().concat(JSON.stringify(command.result))
+                })
               } else {
-                console.log("!!!!!!!!!!!!!!!!!!!!Something is wrong with this command!!!!!!!1111", command, thought, commandType)
+                console.log(thought, "The command", command)
+                const id = parseInt(command.id as string)
+                const objectId = await getObjectId(id, tabId);
+                console.log("Unique id", objectId, command)
+  
+                if (!objectId) {
+                  setTasksList((prev) => {
+                    return prev.slice().concat(["Didn't find the object id for though:" + thought])
+                  })
+                  continue;
+                };
+  
+                if (!taskExecutionRef.current.isTaskActive) break;
+  
+                if (actionType === 'click') {
+                  console.log("Going to click")
+                  if (command.target === "_blank") {
+                    console.error("Command target _blank")
+                  } else {
+                    await domClick(tabId, objectId)
+                  }
+  
+                } else if (actionType === 'typing' && typeof command.textToType === 'string') {
+                  await setValue(tabId, objectId, command.textToType)
+  
+                } else {
+                  console.log("!!!!!!!!!!!!!!!!!!!!Something is wrong with this command!!!!!!!1111", command, thought, actionType)
+                }
               }
-            }
-
-            taskExecutionRef.current = {
-              ...taskExecutionRef.current,
-              aboutPreviousTask: taskExecutionRef.current.aboutPreviousTask.slice().concat([thought])
-            }
-
-            if (!taskExecutionRef.current.isTaskActive) break;
-
-            if (command.tag === 'a') {
-              console.log("Sleeping for 2 sec")
+  
+              taskExecutionRef.current = {
+                ...taskExecutionRef.current,
+                aboutPreviousTask: taskExecutionRef.current.aboutPreviousTask.slice().concat([thought])
+              }
+  
+              if (!taskExecutionRef.current.isTaskActive) break;
+  
+              if (command.tag === 'a') {
+                console.log("Sleeping for 2 sec")
+                setTasksList((prev) => {
+                  return prev.slice().concat([thought, "sleeping for 2 sec"])
+                })
+                await sleep(2000)
+              } else {
+                console.log("Sleeping for 2 sec")
+                setTasksList((prev) => {
+                  return prev.slice().concat([thought, "sleeping for 2 sec"])
+                })
+                await sleep(2000)
+              }
+              console.log("task", i, "  done", thought)
+  
+            } catch (err) {
+              console.error("in command", command, thought, err)
               setTasksList((prev) => {
-                return prev.slice().concat([thought, "sleeping for 2 sec"])
+                return prev.slice().concat([`got error executing last command: "${thought}"`])
               })
-              await sleep(2000)
-            } else {
-              console.log("Sleeping for 2 sec")
-              setTasksList((prev) => {
-                return prev.slice().concat([thought, "sleeping for 2 sec"])
-              })
-              await sleep(2000)
             }
-            console.log("task", i, "  done", thought)
-
-          } catch (err) {
-            console.error("in command", command, thought, err)
-            setTasksList((prev) => {
-              return prev.slice().concat([`got error executing last command: "${thought}"`])
-            })
+            // }
+  
+            // console.log("got commands", tasks)
           }
-          // }
-
-          // console.log("got commands", tasks)
         }
+        // taskJson.task.actions
 
         console.log("Detaching debugger")
       }
