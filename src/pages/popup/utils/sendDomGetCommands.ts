@@ -139,8 +139,9 @@ export async function sendDomGetCommand(
 
     Look at previous actions taken; don't repeat those actions. Try an alternative approach if something failed.
 
-    Give only one action unless it is filling a form, applying different filters. For actionType "scanning-dom" do it in a separate iteration.
+    If the purpose of actions is to fill a Form or apply filter on multiple inputs giving more than one action at each iteration is okay. Otherwise give only one action at each iteration.
 
+    Do not repeat PREVIOUS_TASK that are Success.
 
     Remember, your goal is to suggest actions that will progressively move the user closer to completing the MAIN_TASK, even if the task cannot be accomplished in the current iteration. 
 
