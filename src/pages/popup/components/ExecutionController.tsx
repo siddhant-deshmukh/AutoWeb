@@ -1,4 +1,4 @@
-import { CompletionUsage } from 'openai/resources'
+import Anthropic from '@anthropic-ai/sdk'
 import React, { useEffect, useCallback, useRef, useState } from 'react'
 
 import { sleep } from '../utils/getFromContentScript'
@@ -17,17 +17,24 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
 
   const firstTime = useRef<boolean>(true)
   const [tasksList, setTasksList] = useState<string[]>([])
+
   const [terminateStatus, setterminateStatus] = useState<boolean>(false)
-  const [usage, setUsage] = useState<CompletionUsage>({
-    completion_tokens: 0,
-    prompt_tokens: 0,
-    total_tokens: 0
+  const [usage, setUsage] = useState<{ haiku: Anthropic.Usage, sonnet: Anthropic.Usage }>({
+    haiku: {
+      input_tokens: 0,
+      output_tokens: 0,
+    },
+    sonnet: {
+      input_tokens: 0,
+      output_tokens: 0,
+    }
   })
 
 
   const taskExecutionRef = useRef<ITaskExecutionState>({
     isTaskActive: true,
     aboutPreviousTask: [],
+    previousActions: [],
     currentState: 'noactive',
     iterationNumber: 0
   })
@@ -65,11 +72,11 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
         console.log("DOM", dom)
         // Get the Command by sending the DOM
         // break;
-        const taskJson = await sendDomGetCommand(apiKeys, { main_task, compact_dom: compact_dom, currentPageUrl: currentTab.url?.split("?")[0] }, taskExecutionRef.current.aboutPreviousTask)
+        const taskJson = await sendDomGetCommand(apiKeys, { main_task, compact_dom: compact_dom, currentPageUrl: currentTab.url?.split("?")[0] }, taskExecutionRef.current.previousActions)
         console.log(taskJson)
         // break;
 
-        if (!taskJson || !Array.isArray(taskJson?.task.actions) || taskJson.err){
+        if (!taskJson || !Array.isArray(taskJson?.task.actions) || taskJson.err) {
           taskExecutionRef.current = {
             ...taskExecutionRef.current,
             isTaskActive: false
@@ -89,22 +96,27 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
         setUsage((prev) => {
           if (taskJson.usage) {
             return {
-              completion_tokens: prev.completion_tokens, //+ taskJson.usage.completion_tokens,
-              prompt_tokens: prev.prompt_tokens + taskJson.usage.input_tokens,
-              total_tokens: prev.total_tokens + taskJson.usage.output_tokens,
+              haiku: {
+                input_tokens: prev.haiku.input_tokens + taskJson.usage.haiku.input_tokens,
+                output_tokens: prev.haiku.output_tokens + taskJson.usage.haiku.output_tokens,
+              }, 
+              sonnet: {
+                input_tokens: prev.sonnet.input_tokens + taskJson.usage.sonnet.input_tokens,
+                output_tokens: prev.sonnet.output_tokens + taskJson.usage.sonnet.output_tokens,
+              }
             }
           }
           return { ...prev }
         })
 
-        for(let i=0; i< taskJson.task.actions.length; i++){
-          
+        for (let i = 0; i < taskJson.task.actions.length; i++) {
+
           if (taskJson && taskJson.task) {
-            const { command, actionType, thought } = taskJson.task.actions[i]
-  
+            const { command, actionType, thought, action_in_short } = taskJson.task.actions[i]
+
             try {
               if (!taskExecutionRef.current.isTaskActive) break;
-  
+
               if (actionType === 'back') {
                 console.log("Going back")
                 await chrome.tabs.goBack(tabId)
@@ -113,26 +125,27 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
                 await chrome.tabs.goForward(tabId)
               } else if (actionType === 'finish') {
                 console.log("----------------------      finished  ------------------------------------------")
-              } else if (actionType === 'scanning-dom' && command.result) {
-                console.log("-------     Result --:", command.result)
+                break;
+              } else if (actionType === 'scanning-dom' && command["search-for"]) {
+                console.log("-------   search-for --:", command["search-for"])
                 setInfo((prev) => {
-                  return prev.slice().concat(JSON.stringify(command.result))
+                  return prev.slice().concat(JSON.stringify(command["search-for"]))
                 })
               } else {
                 console.log(thought, "The command", command)
                 const id = parseInt(command.id as string)
                 const objectId = await getObjectId(id, tabId);
                 console.log("Unique id", objectId, command)
-  
+
                 if (!objectId) {
                   setTasksList((prev) => {
                     return prev.slice().concat(["Didn't find the object id for though:" + thought])
                   })
                   continue;
                 };
-  
+
                 if (!taskExecutionRef.current.isTaskActive) break;
-  
+
                 if (actionType === 'click') {
                   console.log("Going to click")
                   if (command.target === "_blank") {
@@ -140,22 +153,19 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
                   } else {
                     await domClick(tabId, objectId)
                   }
-  
+
                 } else if (actionType === 'typing' && typeof command.textToType === 'string') {
                   await setValue(tabId, objectId, command.textToType)
-  
+
                 } else {
                   console.log("!!!!!!!!!!!!!!!!!!!!Something is wrong with this command!!!!!!!1111", command, thought, actionType)
                 }
               }
-  
-              taskExecutionRef.current = {
-                ...taskExecutionRef.current,
-                aboutPreviousTask: taskExecutionRef.current.aboutPreviousTask.slice().concat([thought])
-              }
-  
+
+              
+
               if (!taskExecutionRef.current.isTaskActive) break;
-  
+
               if (command.tag === 'a') {
                 console.log("Sleeping for 2 sec")
                 setTasksList((prev) => {
@@ -170,15 +180,24 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
                 await sleep(2000)
               }
               console.log("task", i, "  done", thought)
-  
+              taskExecutionRef.current = {
+                ...taskExecutionRef.current,
+                aboutPreviousTask: taskExecutionRef.current.aboutPreviousTask.slice().concat([thought]),
+                previousActions: taskExecutionRef.current.previousActions.slice().concat(["Sucess: " + action_in_short])
+              }
             } catch (err) {
               console.error("in command", command, thought, err)
+              taskExecutionRef.current = {
+                ...taskExecutionRef.current,
+                aboutPreviousTask: taskExecutionRef.current.aboutPreviousTask.slice().concat([thought]),
+                previousActions: taskExecutionRef.current.previousActions.slice().concat(["Failed: " + action_in_short])
+              }
               setTasksList((prev) => {
                 return prev.slice().concat([`got error executing last command: "${thought}"`])
               })
             }
             // }
-  
+
             // console.log("got commands", tasks)
           }
         }
@@ -219,8 +238,8 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
     <div className='flex flex-col justify-end'>
       <div className='flex justify-between w-full items-center space-x-32'>
         <div className='flex w-full justify-between'>
-          <div>Total: {usage.total_tokens}</div>
-          <div>Prompt: {usage.prompt_tokens}</div>
+          <div>Haiku: {usage.haiku.input_tokens} + {usage.haiku.output_tokens}</div>
+          <div>Sonnet: {usage.sonnet.input_tokens} + {usage.sonnet.output_tokens}</div>
         </div>
         <button
           onClick={() => {
@@ -262,6 +281,7 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
 interface ITaskExecutionState {
   isTaskActive: boolean
   aboutPreviousTask: string[]
+  previousActions: string[]
   currentState: string
   iterationNumber: number
 }
