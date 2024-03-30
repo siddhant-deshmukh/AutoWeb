@@ -16,12 +16,12 @@ export default async function GetSummerySelectedElements_Haiku({ claude, compact
     
     0. Summery: Summery of the web page what its main prupose is. And this web page show. What are different Sections displaying different info. Keep it short max 500 words.
     
-    1. Selected_Elements: If the task involves selecting/summerizing/getting some info and it is present in some DOM sections/list. Give first few elements from the section/list. for example top 3 opinion articles, 5 recent tweets, return only the number of elements that occur first from DOM. In case number not specified return only first element. Return only if element seems relevant. Inside. Note don't give excessive info try understanding DOM relate it with MAIN_TASK and output. 
-    
-    2. Dropdown_Elements: Might have to click on Dropdown return possible Dropdowns including parent element. 
-    3. Search_Form_Elements: Might have to search return possible Search forms
-    4. Filter_Input_Elements: Might have to filter search results return relevant Filter input elements 
-    5. Navigation_Elements: Might have to click on a button to switch tab or click on navigation link Write these elements DOM inside
+    1. Dropdown_Elements: Might have to click on Dropdown return possible Dropdowns including parent element. 
+    2. Search_Form_Elements: Might have to search return possible Search forms
+    3. Filter_Input_Elements: Might have to filter search results return relevant Filter input elements 
+    4. Navigation_Elements: Might have to click on a button to switch tab or click on navigation link Write these elements DOM inside
+    5. Form_Elements: This elements are different from search and filter. Could be of different types of inputs, select, checkbox. Also mentioned which of them are required and their current value. 
+    6. Selected_Elements: If the task involves selecting/summerizing/getting some info and it is present in some DOM sections/list. Give first few elements from the section/list. for example top 3 opinion articles, 5 recent tweets, return only the number of elements that occur first from DOM. In case number not specified return only first element. Return only if element seems relevant. Inside. Note don't give excessive info try understanding DOM relate it with MAIN_TASK and output. 
     
     Output Format: 
     <Answer>
@@ -41,6 +41,7 @@ export default async function GetSummerySelectedElements_Haiku({ claude, compact
     <Search_Form_Elements></Search_Form_Elements>
     <Filter_Input_Elements></Filter_Input_Elements>
     <Navigation_Elements></Navigation_Elements>
+    <Form_Elements></Form_Elements>
     <Selected_Elements></Selected_Elements>
     </Answer>
     

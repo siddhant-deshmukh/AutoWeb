@@ -59,8 +59,10 @@ export default async function GetCommands_Sonnet({ claude, summery_selected_elem
       ]
     }
 
+    When to fill form try to fill only the required elements that are empty.
+
     Look at previous actions taken; don't repeat those actions. Try an alternative approach if something failed.
-    
+
     If the purpose of actions is to fill multiple inputs giving more than one action at each iteration is okay. Otherwise give only one action at each iteration. For 'click', 'scanning-dom' give only one action at each iteration.
 
     Do not repeat PREVIOUS_TASK that are Success.

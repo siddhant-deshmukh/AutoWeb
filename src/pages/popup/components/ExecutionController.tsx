@@ -6,6 +6,7 @@ import { getSimplifiedDom } from '../utils/simplifyDOM'
 import { sendDomGetCommand } from '../utils/sendDomGetCommands'
 import { attachDebugger, detachDebugger } from '../utils/chromeDebugger'
 import { domClick, getObjectId, setValue } from '../utils/handleingDOMOperations'
+import GetInfoSummery_Sonnet from '../prompts/GetInfoSummery_Haiku'
 
 export default function ExecutionController({ tabId, main_task, apiKeys, setInfo, setTaskState }: {
   tabId: number
@@ -69,11 +70,10 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
 
         if (!taskExecutionRef.current.isTaskActive) break;
 
-        console.log("DOM", dom)
-        // Get the Command by sending the DOM
+        // console.log("DOM", dom)
         // break;
         const taskJson = await sendDomGetCommand(apiKeys, { main_task, compact_dom: compact_dom, currentPageUrl: currentTab.url?.split("?")[0] }, taskExecutionRef.current.previousActions)
-        console.log(taskJson)
+        // console.log(taskJson)
         // break;
 
         if (!taskJson || !Array.isArray(taskJson?.task.actions) || taskJson.err) {
@@ -125,6 +125,7 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
                 await chrome.tabs.goForward(tabId)
               } else if (actionType === 'finish') {
                 console.log("----------------------      finished  ------------------------------------------")
+                exitLoop('finished')
                 break;
               } else if (actionType === 'scanning-dom' && command["search-for"]) {
                 console.log("-------   search-for --:", command["search-for"])

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import GetSummerySelectedElements_Haiku from '../prompts/GetSummerySelectedElements_Haiku';
 import GetCommands_Sonnet, { ITask } from '../prompts/GetCommands_Sonnet';
+import GetInfoSummery_Sonnet from '../prompts/GetInfoSummery_Haiku';
 
 export async function sendDomGetCommand(
   keys: { openai: string, claude: string },
@@ -26,6 +27,15 @@ export async function sendDomGetCommand(
     if (!task) {
       throw err02
     }
+
+    for(let i=0;i < task.actions.length; i++){
+      const { actionType, command } = task.actions[i]
+      if(actionType === 'scanning-dom'){
+        const { data } = await GetInfoSummery_Sonnet({ claude, command: command["search-for"], compact_dom })
+        task.actions[i].command['search-for'] = JSON.stringify(data)
+      }
+    }
+
     return { msg: 'successful', task, usage: { haiku: usage01, sonnet: usage02 } }
   } catch (err) {
     console.error("While sending Prompt", err)
