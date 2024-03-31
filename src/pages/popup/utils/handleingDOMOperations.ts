@@ -59,6 +59,11 @@ export async function typeText(tabId: number, text: string): Promise<void> {
 
     await sleep(50);
   }
+
+  await chrome.debugger.sendCommand({ tabId }, 'Input.dispatchKeyEvent', { type: 'rawKeyDown', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+  await sleep(50);
+  await chrome.debugger.sendCommand({ tabId }, 'Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+  
 }
 
 async function scrollIntoView(tabId: number, objectId: string) {
@@ -89,7 +94,7 @@ export async function setValue(
   await selectAllText(tabId, x, y);
   await typeText(tabId, value);
   // blur the element
-  await blurFocusedElement(tabId);
+  // await blurFocusedElement(tabId);
 }
 
 export async function domClick(tabId: number, objectId: string) {

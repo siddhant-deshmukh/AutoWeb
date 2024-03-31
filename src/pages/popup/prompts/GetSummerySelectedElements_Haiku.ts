@@ -65,6 +65,7 @@ export default async function GetSummerySelectedElements_Haiku({ claude, compact
 
     const version = 'claude-3-haiku-20240307'
 
+    console.log("Sended commad to haiku")
     const completion = await claude.messages.create({
       model: version,
       system: system_prompt.trim(),
@@ -74,7 +75,7 @@ export default async function GetSummerySelectedElements_Haiku({ claude, compact
       max_tokens: 2500,
       temperature: 0.9,
     });
-    console.log("Completion", completion)
+    console.log("Got result Completion", completion)
 
     if (completion.content.length < 1 || completion.content[0].type !== "text") {
       throw "Got invalid format"

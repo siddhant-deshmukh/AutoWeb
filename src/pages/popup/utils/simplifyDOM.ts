@@ -35,7 +35,7 @@ export async function getSimplifiedDom() {
   // console.log("Simplified DOM 2", simplifiedDom2)
 
   return simplifiedDom2;
-  
+
 }
 
 function generateSimplifiedDom(
@@ -48,6 +48,17 @@ function generateSimplifiedDom(
 
   if (!(element instanceof HTMLElement || element instanceof SVGElement))
     return null;
+
+  const excludeTags = [
+    'br', 'hr', 'meta', 'script', 'style', 'link', 'noscript',
+    'iframe', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline',
+    'polygon', 'figure', 'figcaption', 'canvas', 'audio', 'video',
+    'source', 'track', 'map', 'area', 'comment'
+  ];
+  if (excludeTags.includes(element.tagName.toLowerCase()) || element.nodeType === Node.COMMENT_NODE) {
+    // element.parentNode.removeChild(element);
+    return null;
+  }
 
   const isVisible = element.getAttribute('data-visible') === 'true';
   if (!isVisible) return null;

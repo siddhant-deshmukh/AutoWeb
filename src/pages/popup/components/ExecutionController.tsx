@@ -204,7 +204,7 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
         }
         // taskJson.task.actions
 
-        console.log("Detaching debugger")
+        // console.log("Detaching debugger")
       }
 
       console.log("Closing")

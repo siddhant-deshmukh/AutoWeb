@@ -31,7 +31,7 @@ export default async function GetCommands_Sonnet({ claude, summery_selected_elem
 
     4. current_url: The URL of the current web page.
 
-    5. previous_actions: A list of actions taken in previous iterations, including the action did, url at the time of task
+    5. previous_actions: A list of actions taken in previous iterations, including the action did, url at the time of task. Might not be completed see the summery of current page to understand if previous task was sucess or not.
 
     Your task is to analyze the provided information and suggest a sequence of actions to be performed on the current web page, with the goal of progressing towards completing the MAIN_TASK. Your response should be a valid RFC8259-compliant JSON object with the following structure inside <JSON></JSON> tag:
 
@@ -46,7 +46,7 @@ export default async function GetCommands_Sonnet({ claude, summery_selected_elem
             'forward' - Navigate to the next page in the browser history,
             'finish' - If you think MAIN_TASK is complete,
             'stop' - If you think we have lost and MAIN_TASK can not be done,
-            'scanning-dom' - Provide insights or Summarize information from the current page example give top x number of or all search results or summarize article, without performing any actions",
+            'scanning-dom' - Only if user asks for some insights or Summarize information from the current page example give top x number of or all search results or summarize article, without performing any actions and that information is present in the DOM after checking summery.",
 
           "command": {
             "id": "The unique identifier (e.g., ID or XPath) of the target element, if applicable",

@@ -25,7 +25,7 @@ export default async function GetInfoSummery_Sonnet({ claude, command, compact_d
 
     const version = 'claude-3-haiku-20240307'
 
-
+    console.log("Sended commad to haiku")
     const completion = await claude.messages.create({
       model: version,
       system: system_prompt.trim(),
@@ -35,7 +35,7 @@ export default async function GetInfoSummery_Sonnet({ claude, command, compact_d
       max_tokens: 2000,
       temperature: 0.6,
     });
-    console.log("Completion", completion)
+    console.log("Got result Completion", completion)
 
     if (completion.content.length < 1 || completion.content[0].type !== "text") {
       throw "Got invalid format"
