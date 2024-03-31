@@ -63,7 +63,7 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
         console.log(`---------------------            step ${i}            ----------------------------------------`)
 
         const currentTab = await chrome.tabs.get(tabId)
-
+        const currentPageUrl = currentTab.url?.split("?")[0]
 
         const dom = await getSimplifiedDom()
         const compact_dom = dom.outerHTML
@@ -72,7 +72,7 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
 
         // console.log("DOM", dom)
         // break;
-        const taskJson = await sendDomGetCommand(apiKeys, { main_task, compact_dom: compact_dom, currentPageUrl: currentTab.url?.split("?")[0] }, taskExecutionRef.current.previousActions)
+        const taskJson = await sendDomGetCommand(apiKeys, { main_task, compact_dom: compact_dom, currentPageUrl }, taskExecutionRef.current.previousActions)
         // console.log(taskJson)
         // break;
 
@@ -99,7 +99,7 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
               haiku: {
                 input_tokens: prev.haiku.input_tokens + taskJson.usage.haiku.input_tokens,
                 output_tokens: prev.haiku.output_tokens + taskJson.usage.haiku.output_tokens,
-              }, 
+              },
               sonnet: {
                 input_tokens: prev.sonnet.input_tokens + taskJson.usage.sonnet.input_tokens,
                 output_tokens: prev.sonnet.output_tokens + taskJson.usage.sonnet.output_tokens,
@@ -163,7 +163,7 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
                 }
               }
 
-              
+
 
               if (!taskExecutionRef.current.isTaskActive) break;
 
@@ -184,7 +184,7 @@ export default function ExecutionController({ tabId, main_task, apiKeys, setInfo
               taskExecutionRef.current = {
                 ...taskExecutionRef.current,
                 aboutPreviousTask: taskExecutionRef.current.aboutPreviousTask.slice().concat([thought]),
-                previousActions: taskExecutionRef.current.previousActions.slice().concat(["Sucess: " + action_in_short])
+                previousActions: taskExecutionRef.current.previousActions.slice().concat(["Sucess: " + action_in_short + "  on Url:" + currentPageUrl])
               }
             } catch (err) {
               console.error("in command", command, thought, err)

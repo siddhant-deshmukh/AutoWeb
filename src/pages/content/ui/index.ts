@@ -1,6 +1,12 @@
 import getAnnotatedDOM, { getUniqueElementSelectorId, ripple } from "./getDomOp";
 
-console.log("Here in content script")
+console.log("Here in content script ---")
+
+// window.addEventListener('beforeunload', function(event) {
+//   // Cancel the event to prevent navigation
+//   event.preventDefault();
+//   event.returnValue = '';
+// });
 
 chrome.runtime.onMessage.addListener(
   (message, sender, sendResponse): true | undefined => {

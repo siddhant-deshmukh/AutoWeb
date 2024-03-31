@@ -23,7 +23,7 @@ export async function sendDomGetCommand(
     if (!summery_selected_elements) {
       throw err01
     }
-    const { task, err: err02, usage: usage02, msg } = await GetCommands_Sonnet({ claude, aboutPrevTasks, main_task, summery_selected_elements })
+    const { task, err: err02, usage: usage02, msg } = await GetCommands_Sonnet({ claude, aboutPrevTasks, main_task, summery_selected_elements, currentPageUrl })
     if (!task) {
       throw err02
     }

@@ -83,6 +83,7 @@ export function getUniqueElementSelectorId(id: number): string {
   // element may already have a unique id
 
   let uniqueId = element.getAttribute(TAXY_ELEMENT_SELECTOR);
+  element.setAttribute('target', '_self')
   console.log("getUniqueElementSelectorId", element, id, uniqueId)
   if (uniqueId) return uniqueId;
   uniqueId = Math.random().toString(36).substring(2, 10);

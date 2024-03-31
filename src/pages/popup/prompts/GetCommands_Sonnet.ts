@@ -1,11 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-export default async function GetCommands_Sonnet({ claude, summery_selected_elements, main_task, aboutPrevTasks }: {
+export default async function GetCommands_Sonnet({ claude, summery_selected_elements, main_task, aboutPrevTasks, currentPageUrl }: {
   claude: Anthropic,
   summery_selected_elements: string,
   main_task: string,
-  aboutPrevTasks: string[]
-}) : Promise<{
+  aboutPrevTasks: string[],
+  currentPageUrl: string
+}): Promise<{
   task: ITask;
   msg: string;
   usage: Anthropic.Messages.Usage;
@@ -30,7 +31,7 @@ export default async function GetCommands_Sonnet({ claude, summery_selected_elem
 
     4. current_url: The URL of the current web page.
 
-    5. previous_actions: A list of actions taken in previous iterations, including the thought process behind each action and any resulting updates to the DOM or page state.
+    5. previous_actions: A list of actions taken in previous iterations, including the action did, url at the time of task
 
     Your task is to analyze the provided information and suggest a sequence of actions to be performed on the current web page, with the goal of progressing towards completing the MAIN_TASK. Your response should be a valid RFC8259-compliant JSON object with the following structure inside <JSON></JSON> tag:
 
@@ -73,13 +74,16 @@ export default async function GetCommands_Sonnet({ claude, summery_selected_elem
     `
     const user_prompt = `
     MAIN_TASK: ${main_task}
-      
+    
+    CURRENT_PAGE_URL: ${currentPageUrl}
+
     PREVIOUS_TASK: ${JSON.stringify(aboutPrevTasks)}
 
     ${summery_selected_elements}
     `
     const version = 'claude-3-sonnet-20240229'
 
+    console.log({ user_prompt })
     const completion = await claude.messages.create({
       model: version,
       system: system_prompt.trim(),
