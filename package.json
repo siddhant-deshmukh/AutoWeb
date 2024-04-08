@@ -35,7 +35,7 @@
     "@rollup/plugin-sucrase": "^5.0.2",
     "@rollup/plugin-typescript": "11.1.6",
     "@testing-library/react": "14.0.0",
-    "@types/chrome": "0.0.251",
+    "@types/chrome": "0.0.266",
     "@types/lodash": "^4.14.202",
     "@types/node": "20.8.10",
     "@types/react": "18.2.37",
